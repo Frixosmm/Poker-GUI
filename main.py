@@ -5,7 +5,8 @@ from draw_cards import *
 from value_cards import *
 from gui import draw_gui
 
-#TODO# Perhaps it would be more appropriate to create a GUI object instead of holding all gui variables in Game object?
+
+# TODO# Perhaps it would be more appropriate to create a GUI object instead of holding all gui variables in Game object?
 class Player:
 
     def __init__(self, name, chips, cards, seat_number):
@@ -19,47 +20,63 @@ class Player:
         self.best_five = cards
 
     def decides(self, game, decision=None):
-        # TODO# Use ML for decisions
+        # TODO# Check validity of each action
+        # Can you check?
+        # Can you raise?
+        # Can you bet?
+
+        # TODO# Use ML for decisions.
         if self.chips == 0:
             pass
         elif self.bet == game.current_bet:
             decision = "check"
         else:
             decision = "call"
-        return decision
 
-    def bets(self, game, amount):
-        self.chips -= amount
-        game.pot += amount
-        self.bet += amount
-        game.current_bet += amount
+        bet_amount = 0
+        raise_amount = 0
+
+        if game.pot <= 100:
+            if self.seat_number == 4:  # and game.state == "flop"
+                decision = "bet"
+                bet_amount = game.big_blind_amount
+            elif self.seat_number == 5:
+                decision = "raise"
+                raise_amount = 2 * game.big_blind_amount
+
+        return decision, bet_amount, raise_amount
 
     def checks(self):
         pass
 
+    def bets(self, game, bet_amount):
+        self.calls(game)
+        game.pot += bet_amount
+        game.current_bet += bet_amount
+        self.bet = game.current_bet
+        self.chips-=bet_amount
+        game.actions_remaining = len(game.hand_players)
+
+
     def calls(self, game):
         # TODO# Call when you have less than current bet is all in
-        if self.bet < game.current_bet:
-            self.chips -= game.current_bet - self.bet
-            game.pot += game.current_bet - self.bet
-            self.bet = game.current_bet
+        self.chips -= game.current_bet - self.bet
+        game.pot += game.current_bet - self.bet
+        self.bet = game.current_bet
 
     def raises(self, game, raise_amount):
-        if raise_amount > game.big_blind_amount:
-            # calls
-            self.chips -= game.current_bet - self.bet
-            game.pot += game.current_bet - self.bet
-            self.bet = game.current_bet
-            # bets raise amount
-            self.chips -= raise_amount
-            game.pot += raise_amount
-            self.bet += raise_amount
-            game.current_bet += raise_amount
-            # self.calls(self,game)
-            # self.bets(self,game,raise_amount)
-
+        if raise_amount >= game.big_blind_amount and raise_amount >= game.last_bet:
+            self.calls(game)
+            self.bets(game, raise_amount)
+            game.last_bet = raise_amount
+        else:
+            raise_amount = max(game.last_bet, game.big_blind_amount)
+            self.calls(game)
+            self.bets(game, raise_amount)
+            game.last_bet = raise_amount
         # TODO# Raise without having enough to raise is all in
-        # TODO# Raise has to be at least one big blind, and at least as much as the previous bet
+        # TODO# Raise has to be at least one big blind, and at least as much as the previous bet (DONE, but move to decides)
+        # TODO# Check if player has money to raise (probably in decide)
 
     def folds(self, game):
         self.bet = 0
@@ -72,7 +89,7 @@ class Player:
         self.chips = 0
         game.current_bet += self.bet
 
-    def takes_action(self, game, decision, bet_amount=None, raise_amount=None):
+    def takes_action(self, game, decision, bet_amount=0, raise_amount=0):
         if decision == "check":
             self.checks()
         elif decision == "fold":
@@ -82,7 +99,7 @@ class Player:
         elif decision == 'raise':
             self.raises(game, raise_amount=raise_amount)
         elif decision == "bet":
-            self.bets(game, amount=bet_amount)
+            self.bets(game, bet_amount=bet_amount)
         elif decision == 'all-in':
             self.all_ins(game)
         elif decision == 'none':
@@ -135,6 +152,7 @@ class Game:
         self.actions_remaining = 0
         self.hand_count = 0
         self.acting_player = None
+        self.last_bet = 0
 
     def deal_cards(self):
         for i in range(0, self.num_p):
@@ -149,19 +167,25 @@ class Game:
     def post_blinds(self):
         if self.dealer_loc < self.num_p - 2:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
-            self.players[self.dealer_loc + 2].bets(self, self.big_blind_amount)
+            self.players[self.dealer_loc + 2].raises(self, self.big_blind_amount)
             # self.dealer_loc += 1
         elif self.dealer_loc < self.num_p - 1:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
-            self.players[0].bets(self, self.big_blind_amount)
+            self.players[0].raises(self, self.big_blind_amount)
             # self.dealer_loc += 1
         else:
             self.players[0].bets(self, self.small_blind_amount)
-            self.players[1].bets(self, self.big_blind_amount)
+            self.players[1].raises(self, self.big_blind_amount)
             # self.dealer_loc = 0
 
     def new_game(self):
-        self.pot = 0
+        if self.pot != 0:
+            for player in self.players:
+
+                print(player.chips,player.bet)
+                player.chips += player.bet
+                player.bet = 0
+            self.pot = 0
         self.hand_count += 1
         self.hand_players = self.players
         self.current_bet = 0
@@ -227,8 +251,7 @@ class Game:
         # print(f"acting player is now{self.acting_player.name}")
         self.acting_player = self.players[seat_check]
 
-    def betting_round(self):
-
+    def decide_acting_player(self):
         if self.state == "pre_flop":
             increment = 3
         else:
@@ -246,21 +269,37 @@ class Game:
                 seat_check = 0
 
         self.acting_player = self.players[seat_check]
-        # print('-------------------NEW BETTING ROUND------------------')
+
+    def betting_round(self):
+        # print(self.state)
+        print(f'-------------------NEW BETTING ROUND-{self.state}-----------------')
         self.actions_remaining = len(self.hand_players)
+
         while self.actions_remaining > 0:
-            decision = self.acting_player.decides(game=self)
-            self.acting_player.takes_action(game=self, decision=decision)
-            # print(
-            #    f"{self.acting_player.name}, {decision}s,PBet:{self.acting_player.bet}, Pot:{self.pot},CBet={self.current_bet}")
+            decision, bet_amount, raise_amount = self.acting_player.decides(game=self)
+            self.acting_player.takes_action(game=self, decision=decision, bet_amount=bet_amount,
+                                            raise_amount=raise_amount)
+            # Can show each player action
+            draw_gui(self)
+            time.sleep(2)
+            #
+            print(
+                f"{self.acting_player.name}, {decision}s,PBet:{self.acting_player.bet}, Pot:{self.pot},CBet={self.current_bet}")
+
             self.update_acting_player()
         self.round_bool = False
 
     def run_main(self):
-        run = True
-        self.new_game()
 
+        self.new_game()
+        print(self.state, self.acting_player.name)
+        # self.decide_acting_player()
+        run = True
         while run:
+            draw_gui(self)
+            # time.sleep(1)
+            if self.round_bool:
+                self.betting_round()
             draw_gui(self)
             self.clock.tick(60)
             """""""""
@@ -278,21 +317,25 @@ class Game:
                     if event.key == pygame.K_n:
                         self.new_game()
                     if event.key == pygame.K_p:
+                        self.decide_acting_player()
                         self.next_stage()
-
                         if self.state != "showdown":
                             self.round_bool = True
                 if event.type == pygame.MOUSEBUTTONDOWN:  # if click, show mouse position, useful for placing buttons
                     print(pygame.mouse.get_pos())
-            if self.round_bool:
-                self.betting_round()
 
         pygame.quit()
 
 
+# RUN once to get needed list, or import from all_possible_starting_hands file.
+
+
+
+
 if __name__ == '__main__':
-    g = Game(num_p=6)
-    # g.new_game()
-    # g.betting_round()
-    g.run_main()
+    print('wtf')
+    #g = Game(num_p=6)
+    #g.new_game()
+    #g.betting_round()
+    #g.run_main()
 
