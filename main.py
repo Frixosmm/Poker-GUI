@@ -3,7 +3,6 @@ import time
 from best_cards import *
 from data import simulate
 from draw_cards import *
-from value_cards import *
 from gui import draw_gui
 
 
