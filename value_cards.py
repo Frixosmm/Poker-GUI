@@ -1,13 +1,13 @@
-from draw_cards import draw_cards
+from draw_cards import draw_cards, Card
+import pandas as pd
 
 
-# Returns the value of 5 cards
 def value_cards(cards):
     value = None
     if len(cards) == 5:
         cards_value = [0, 0, 0, 0, 0]
         cards_suit = [0, 0, 0, 0, 0]
-        value = max(cards_value)
+        value = max(cards_value) * 0.001
         for x in range(0, 5):
             cards_value[x] = cards[x].value
             cards_suit[x] = cards[x].suit
@@ -27,7 +27,7 @@ def value_cards(cards):
         sorted_cards = sorted(cards_value)
         value = sorted_cards[-1]  # Minimum value equal to high card?
 
-        #####################IF ALL CARDS HAVE DIFFERENT VALUES(str,fl,strfl#############
+        #####################IF ALL CARDS HAVE DIFFERENT VALUES(str,fl,strfl)#############
         if counts_store.count(1) == 5:
             straight = False
             flush = False
@@ -36,116 +36,111 @@ def value_cards(cards):
                     if sorted_cards[0] == sorted_cards[3] - 3:
                         if sorted_cards[0] == sorted_cards[4] - 4:
                             straight = True
-                            value = 4000
+                            value = 40000
                             value = value + sorted_cards[4]
                             # print("straight")
 
             if cards_suit[0] == cards_suit[1] == cards_suit[2] == cards_suit[3] == cards_suit[4]:
                 # print("flush")
-                value = 5000
-                for i in sorted_cards:
-                    value = value + i
-
+                # TODO# Resulting Value for flushes will differentiate between flushes using very small numbers. Take care not to cause bugs with this. (DONE)
+                value = 50000 + (sorted_cards[-1] * 100) + (sorted_cards[-2] * 1) + (sorted_cards[-3] * 0.01) + (
+                            sorted_cards[
+                                -4] * 0.0001) + (sorted_cards[-5] * 0.000001)
                 flush = True
 
             if flush == True and straight == True:
-                value = 8000
+                value = 80000
                 # print("straight flush")
                 if cards_value.count(14) == 1:
-                    value = 10000
-                    # print("royal flush! HOLY SHIT!")
+                    value = 100000
 
         #####################MIXED VALUES (all other combos)######################
         elif counts_store.count(2) == 1:
             if counts_store.count(3) == 1:
-                value = 6000
+                value = 60000
                 for i in range(1, 15):
                     if counts_store[i - 1] == 3:
-                        value = value + i * 10  ###the triple is valued higher than double
+                        value = value + (i - 1) * 100
+                        ###the triple is valued higher than double
                     elif counts_store[i - 1] == 2:
-                        value = value + i
+                        value = value + i - 1
                 # print("full house")
             else:
-                value = 1000
+                value = 10000
                 for i in range(1, 15):
                     if counts_store[i - 1] == 2:
-                        value = value + i * 10
+                        value = value + (i - 1) * 100
                     elif counts_store[i - 1] == 1:
-                        value = value + i
+                        value = value + i - 1
                 # print("one pair")
 
         elif counts_store.count(2) == 2:
             # print("two_pairs")
-            value = 2000
+            value = 20000
+            lowest_pair = True
             for i in range(1, 15):
                 if counts_store[i - 1] == 2:
-                    value = value + i * 10
+                    if lowest_pair:
+                        value = value + (i - 1)
+                        lowest_pair = False
+                    else:
+                        # high_pair
+                        value = value + (i - 1) * 100
                 elif counts_store[i - 1] == 1:
-                    value = value + i
-
+                    value = value + (i - 1) * 0.001
         elif counts_store.count(3) == 1:
-            value = 3000
+            value = 30000
+            low_kicker = True
             # print("three of a kind")
             for i in range(1, 15):
                 if counts_store[i - 1] == 3:
-                    value = value + i * 10
+                    if low_kicker:
+                        value = value + (i - 1)
+                        low_kicker = False
+                    value = value + (i - 1) * 100
                 elif counts_store[i - 1] == 1:
-                    value = value + i
+                    value = value + (i - 1) * 0.001
 
         elif counts_store.count(4) == 1:
-            value = 7000
+            value = 70000
             # print("four of a kind")
             for i in range(1, 15):
                 if counts_store[i - 1] == 4:
-                    value = value + i * 10
+                    value = value + (i - 1) * 100
                 elif counts_store[i - 1] == 1:
-                    value = value + i
+                    value = value + i - 1
     elif len(cards) == 2:
-        pass
+        print("not implemented for 2 cards")
     elif len(cards) == 6:
-        pass
+        print("not implemented for 6 cards")
     elif len(cards) == 7:
-        pass
+        print("not implemented for 7 cards")
     return value
 
 
 def categorize_value(value):
-    if 0 <= value <= 1000:
+    if 0 <= value <= 10000:
         return "High Card"
-    elif 1001 <= value <= 2000:
+    elif 10001 <= value <= 20000:
         return "Pair"
-    elif 2001 <= value <= 3000:
+    elif 20001 <= value <= 30000:
         return "Two Pair"
-    elif 3001 <= value <= 4000:
+    elif 30001 <= value <= 40000:
         return "Three of a Kind"
-    elif 4001 <= value <= 5000:
+    elif 40001 <= value <= 50000:
         return "Straight"
-    elif 5001 <= value <= 6000:
+    elif 50001 <= value <= 60000:
         return "Flush"
-    elif 6001 <= value <= 7000:
+    elif 60001 <= value <= 70000:
         return "Full House"
-    elif 7001 <= value <= 8000:
+    elif 70001 <= value <= 80000:
         return "Four of a Kind"
-    elif 8001 <= value <= 9000:
+    elif 80001 <= value <= 90000:
         return "Straight Flush"
-    elif 9001 <= value <= 10000:
+    elif 90001 <= value <= 100000:
         return "Royal Flush"
     else:
         return "Invalid value"
-
-
-def all_possible_starting_hands():
-    p_hands = []
-    count = 0
-    while len(p_hands) != 1326 and count <= 20000:
-        count += 1
-        hand = draw_cards(2)
-        temp = (hand[0].value, hand[0].suit, hand[1].value, hand[1].suit)
-        temp_mirror = (hand[1].value, hand[1].suit, hand[0].value, hand[0].suit)
-        if temp not in p_hands and temp_mirror not in p_hands:
-            p_hands.append(temp)
-            print(f"Found {len(p_hands)} combinations after {count} iterations")
-    return p_hands
 
 
 def check_uniqueness(vectors):
@@ -154,13 +149,3 @@ def check_uniqueness(vectors):
             if vectors[i] == vectors[j]:
                 return False  # If any duplicate is found, return False
     return True  # If no duplicates are found, return True
-
-
-# TODO# Import database from xlsx correctly, TODO# Simulate thousands of games for each possible hand, obtain average
-#  "best_value" from best_cards. Make sure player cards dont get redrawn in common cards.
-""""" Used once to save all possible starting hands.
-import pandas as pd
-a=all_possible_starting_hands()
-df=pd.DataFrame(a,columns=['Card_1_Value','Card_1_Suit','Card_2_Value','Card_2_Suit'])
-df.to_excel('all_possible_starting_hands.xlsx',index=False)
-"""""

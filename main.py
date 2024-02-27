@@ -1,10 +1,18 @@
 import time
 
 from best_cards import *
+from data import simulate
 from draw_cards import *
 from value_cards import *
 from gui import draw_gui
 
+
+# TODO#Sounds for call,check,fold,raise
+# TODO#(Human) Player buttons
+# TODO#(Human) Player cards shown
+# TODO# Cards moving animation
+# TODO# Better table background, higher resolution
+# TODO# Adjust seat positions for 1920/1080.
 
 # TODO# Perhaps it would be more appropriate to create a GUI object instead of holding all gui variables in Game object?
 class Player:
@@ -54,9 +62,8 @@ class Player:
         game.pot += bet_amount
         game.current_bet += bet_amount
         self.bet = game.current_bet
-        self.chips-=bet_amount
+        self.chips -= bet_amount
         game.actions_remaining = len(game.hand_players)
-
 
     def calls(self, game):
         # TODO# Call when you have less than current bet is all in
@@ -75,7 +82,7 @@ class Player:
             self.bets(game, raise_amount)
             game.last_bet = raise_amount
         # TODO# Raise without having enough to raise is all in
-        # TODO# Raise has to be at least one big blind, and at least as much as the previous bet (DONE, but move to decides)
+        # TODO# Raise must be >=big blind, and >= previous bet (DONE, but move to decides)
         # TODO# Check if player has money to raise (probably in decide)
 
     def folds(self, game):
@@ -168,21 +175,17 @@ class Game:
         if self.dealer_loc < self.num_p - 2:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
             self.players[self.dealer_loc + 2].raises(self, self.big_blind_amount)
-            # self.dealer_loc += 1
         elif self.dealer_loc < self.num_p - 1:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
             self.players[0].raises(self, self.big_blind_amount)
-            # self.dealer_loc += 1
         else:
             self.players[0].bets(self, self.small_blind_amount)
             self.players[1].raises(self, self.big_blind_amount)
-            # self.dealer_loc = 0
 
     def new_game(self):
         if self.pot != 0:
             for player in self.players:
-
-                print(player.chips,player.bet)
+                print(player.chips, player.bet)
                 player.chips += player.bet
                 player.bet = 0
             self.pot = 0
@@ -195,9 +198,7 @@ class Game:
         self.deal_cards()
         self.next_dealer_pos()
         self.post_blinds()
-        # self.update_bool = True
         self.update_acting_player()
-        # print("---------------------NEW GAME--------------------")
 
     def next_stage(self):
         if self.state == 'not_started':
@@ -229,11 +230,10 @@ class Game:
         self.update_bool = False
 
     def update_acting_player(self):
-        # TODO# Hard coding self.players[2] as the initial acting player should be ok as long as games don't start with empty seats.
+        # TODO# Hard coding self.players[2] as initial acting player is ok as long as games don't start with empty
+        #  seats.
         if self.acting_player is None:
-            self.acting_player = self.players[
-                2]  # set big blind as initial acting player, because it will be updated to next one over
-            # print(f"acting player is now{self.acting_player.name}")
+            self.acting_player = self.players[2]
 
         seat_check = self.acting_player.seat_number
         # print(f"Seat Check is{seat_check} before if")
@@ -279,12 +279,8 @@ class Game:
             decision, bet_amount, raise_amount = self.acting_player.decides(game=self)
             self.acting_player.takes_action(game=self, decision=decision, bet_amount=bet_amount,
                                             raise_amount=raise_amount)
-            # Can show each player action
-            draw_gui(self)
-            time.sleep(2)
-            #
-            print(
-                f"{self.acting_player.name}, {decision}s,PBet:{self.acting_player.bet}, Pot:{self.pot},CBet={self.current_bet}")
+            # Can show each player action draw_gui(self) time.sleep(2) print(f"{self.acting_player.name},
+            # {decision}s,PBet:{self.acting_player.bet}, Pot:{self.pot},CBet={self.current_bet}")
 
             self.update_acting_player()
         self.round_bool = False
@@ -292,8 +288,6 @@ class Game:
     def run_main(self):
 
         self.new_game()
-        print(self.state, self.acting_player.name)
-        # self.decide_acting_player()
         run = True
         while run:
             draw_gui(self)
@@ -321,21 +315,18 @@ class Game:
                         self.next_stage()
                         if self.state != "showdown":
                             self.round_bool = True
-                if event.type == pygame.MOUSEBUTTONDOWN:  # if click, show mouse position, useful for placing buttons
+                if event.type == pygame.MOUSEBUTTONDOWN:  # if you click, show mouse position, useful for placing
+                    # buttons
                     print(pygame.mouse.get_pos())
 
         pygame.quit()
 
 
-# RUN once to get needed list, or import from all_possible_starting_hands file.
-
-
-
-
 if __name__ == '__main__':
-    print('wtf')
-    #g = Game(num_p=6)
-    #g.new_game()
-    #g.betting_round()
-    #g.run_main()
+    # g = Game(num_p=6)
+    # g.run_main()
 
+    # Simulate 5 common cards 1000 times,rank all 1326 starting hands based on ratio of 1326 hands they beat
+    df = simulate(n_hands=1000, output_save_loc="Data/hand_rankings_1000.xlsx")
+    # df=pd.read_excel("Data/hand_rankings_1000.xlsx")
+    pass

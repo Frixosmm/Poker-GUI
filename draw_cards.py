@@ -1,8 +1,21 @@
 import random
 import pygame
 
+
 CARD_WIDTH = 50
 CARD_HEIGHT = 100
+class Card:
+    def __init__(self):
+        self.value = random.randint(2, 14)
+        self.suit = random.randint(1, 4)
+        self.combo = (self.value, self.suit)
+        self.image = generate_card_image(self)
+
+    def make_specific(self,value,suit):
+        self.value=value
+        self.suit=suit
+        self.combo=(self.value,self.suit)
+        self.image=(generate_card_image(self))
 
 
 def generate_card_image(card):
@@ -19,14 +32,6 @@ def generate_card_image(card):
     card_image = pygame.transform.scale(pygame.image.load(result_string), (CARD_WIDTH, CARD_HEIGHT))
 
     return card_image
-
-
-class Card:
-    def __init__(self):
-        self.value = random.randint(2, 14)
-        self.suit = random.randint(1, 4)
-        self.combo = (self.value, self.suit)
-        self.image = generate_card_image(self)
 
 
 def draw_cards(number):

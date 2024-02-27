@@ -1,14 +1,11 @@
-import pygame
 import time
-import random
 from draw_cards import *
-from best_cards import *
 from value_cards import *
 
 
 # TODO# When gui is imported, a black screen is temporarily displayed. Fix this...
 def draw_gui(game):
-    draw_BG(game)
+    draw_bg(game)
     draw_time(game)
     cards = game.cards
     for i in range(0, len(game.seat_positions)):
@@ -52,6 +49,10 @@ def draw_gui(game):
     pygame.display.update()
 
 
+def draw_card(game, card):
+    game.gui.blit(card.image, (100, 100))
+
+
 def draw_hidden_cards(game):
     for i in range(0, game.num_p):
         game.gui.blit(game.joker, game.seat_positions[i])
@@ -72,7 +73,8 @@ def draw_player_info(game):
                              game.seat_positions[player.seat_number][1] - game.height / 15))
         bet_text = game.font.render(f"{player.bet}", 1, "black")
         game.gui.blit(bet_text, (
-            game.seat_positions[player.seat_number][0], game.seat_positions[player.seat_number][1] + (2 * game.height / 10)))
+            game.seat_positions[player.seat_number][0],
+            game.seat_positions[player.seat_number][1] + (2 * game.height / 10)))
 
 
 def draw_pot(game):
@@ -88,9 +90,6 @@ def draw_winner(game):
 
 
 def draw_dealer(game):
-    # WIN.blit(game.dealer_image, (game.seat_positions[game.dealer][0]+game.width/50,game.seat_positions[
-    # game.dealer][1]+game.height/5)) pygame.draw.circle(WIN, 'red', (game.seat_positions[game.dealer][
-    # 0]+game.width/50,game.seat_positions[game.dealer][1]+game.height/5), 10,draw_bottom_left=True)  # DRAW CIRCLE
     dealer_text = game.font.render(f"D", 1, "red")
     game.gui.blit(dealer_text, (
         game.seat_positions[game.dealer_loc][0] + game.width / 15,
@@ -102,5 +101,5 @@ def draw_time(game):
     game.gui.blit(time_text, (0, 0))
 
 
-def draw_BG(game):
+def draw_bg(game):
     game.gui.blit(game.background, (0, 0))
