@@ -1,10 +1,14 @@
 import time
 
+import pandas as pd
+
 from best_cards import *
 from data import simulate
 from draw_cards import *
-from gui import draw_gui
+from gui import render_gui
 
+
+# TODO# When gui is imported, a black screen is temporarily displayed. Fix this...
 
 # TODO#Sounds for call,check,fold,raise
 # TODO#(Human) Player buttons
@@ -21,37 +25,125 @@ class Player:
         self.chips = chips
         self.turn = 0
         self.cards = cards
-        self.value = 0
+        self.showdown_value = 0
+        self.starting_hand_value = 0
         self.seat_number = seat_number
         self.bet = 0
         self.best_five = cards
+        self.decision = None
+        self.raise_amount = 0
+        self.bet_amount = 0
+        self.valid_choice = None
+        self.playing_for = 0
 
-    def decides(self, game, decision=None):
-        # TODO# Check validity of each action
-        # Can you check?
-        # Can you raise?
-        # Can you bet?
-
-        # TODO# Use ML for decisions.
-        if self.chips == 0:
-            pass
-        elif self.bet == game.current_bet:
-            decision = "check"
+    def value_starting_hand(self, data_loc="Data/hand_rankings_100.xlsx"):
+        df = pd.read_excel(data_loc)
+        search = [self.cards[0].value, self.cards[0].suit, self.cards[1].value, self.cards[1].suit]
+        mask = df.apply(lambda row: all(row.iloc[i] == search[i] for i in range(len(search))), axis=1)
+        result = df[mask]
+        # print(f"Length result is"{len(result)})
+        # print(len(result.iloc[0]))
+        if result.empty:
+            print(f"The valuing function failed, while searching for:{search}")
+            print(f"Result was:")
+            # print(result)
+            self.starting_hand_value = 0
         else:
-            decision = "call"
+            self.starting_hand_value = result.iloc[0, 4]
 
-        bet_amount = 0
-        raise_amount = 0
+    def check_valid_choice(self, game):
+        player = self
+        if player.chips > 0 and len(game.hand_players) > 1 and (player in game.hand_players):
+            # If opponents exist and player is still in the game and has chips
+            # Move to check validity of player decision
+            if player.decision is None or player.decision == "fold":
+                player.valid_choice = True  # folding or doing nothing is always valid
+            elif player.decision == "check":
+                if player.bet != game.current_bet:  # Can't check if you need to put money in pot
+                    print("Can't check, so you fold instead")
+                    # print("Must chose fold or call.")
+                    player.decision = "fold"
 
-        if game.pot <= 100:
-            if self.seat_number == 4:  # and game.state == "flop"
-                decision = "bet"
-                bet_amount = game.big_blind_amount
-            elif self.seat_number == 5:
-                decision = "raise"
-                raise_amount = 2 * game.big_blind_amount
+                    player.valid_choice = False
+                else:
+                    player.valid_choice = True
 
-        return decision, bet_amount, raise_amount
+            elif player.decision == "call":
+                if player.chips < game.current_bet - player.bet:  # Can't call, not enough chips
+                    print(
+                        "Player chose call, but doesn't have enough chips to cover current bet.")  # p.chips > 0 = True
+                    player.decision = "all-in"
+                    print("Player goes all-in instead.")
+                    player.valid_choice = False
+                else:  # Can call, valid choice
+                    player.valid_choice = True
+
+            elif player.decision == "bet":
+                if player.chips >= game.current_bet - player.bet + player.bet_amount:  # Has enough to call AND bet
+                    player.valid_choice = True
+                elif player.chips >= game.current_bet - player.bet:  # Has enough to call only
+                    player.decision = "call"
+                    print("Player tried to bet, but didn't have enough. Player calls instead.")
+                    player.valid_choice = False
+                else:  # Chips>0 from beginning
+                    player.decision = "all-in"
+                    print("Player tried to bet, but didn't even have enough to call. Player goes all-in instead")
+                    player.valid_choice = False
+
+            elif player.decision == "raise":  # TODO# It is only a raise if someone has previously bet
+                if player.chips >= game.current_bet - player.bet + player.raise_amount:  # Has enough to call AND raise
+                    if player.raise_amount >= game.big_blind_amount and player.raise_amount >= game.previous_bet:  # Raise amount is player.valid
+                        player.valid_choice = True
+
+                    else:  # Raise amount is invalid but player has enough to raise the minimum
+                        print("Raise amount was invalid.")
+                        print("Raise amount adjusted to minimum raise amount.")
+                        player.raise_amount = min(game.big_blind_amount, game.previous_bet)
+                        player.valid_choice = False
+
+                elif player.chips > game.current_bet - player.bet:  # Has enough to call but not raise
+                    print(F"{player.name} doesn't have enough to raise, they call instead.")
+                    player.decision = "call"
+                    player.valid_choice = False
+                else:  # Has chips>0 but cant raise or call
+                    player.decision = "all-in"
+                    player.valid_choice = False
+            elif player.decision == "all-in":  # Since player in game, has opponents and has chips, all-in is always valid.
+                player.valid_choice = True
+            else:
+                print("Player decision not recognised")
+                player.valid_choice = False
+        else:  # If no opponents exist or player not in game, or player is in game but has 0 chips, player does nothing
+            player.decision = None
+
+        return
+
+    def decides(self, game):
+        self.decision = None
+        self.bet_amount = 0
+        self.raise_amount = 0
+
+        if self.starting_hand_value < 0.55 and self.bet < game.current_bet and len(game.hand_players) != 1:
+            self.decision = "fold"
+        elif self.starting_hand_value < 0.7:
+            if self.bet == game.current_bet:
+                self.decision = "check"
+            else:
+                self.decision = "call"
+        elif self.starting_hand_value >= 0.7:
+            if game.pot <= 100:
+                self.decision = "bet"
+                self.bet_amount = game.big_blind_amount
+            else:
+                self.decision = "check"
+
+        self.check_valid_choice(game)
+        if self.valid_choice:
+            pass
+        else:
+            print("Invalid Choice was entered")  # TODO# If invalid choice is made, should ask player for another choice
+        if self.decision is None:
+            print("Choice is none")
 
     def checks(self):
         pass
@@ -65,24 +157,14 @@ class Player:
         game.actions_remaining = len(game.hand_players)
 
     def calls(self, game):
-        # TODO# Call when you have less than current bet is all in
         self.chips -= game.current_bet - self.bet
         game.pot += game.current_bet - self.bet
         self.bet = game.current_bet
 
     def raises(self, game, raise_amount):
-        if raise_amount >= game.big_blind_amount and raise_amount >= game.last_bet:
-            self.calls(game)
-            self.bets(game, raise_amount)
-            game.last_bet = raise_amount
-        else:
-            raise_amount = max(game.last_bet, game.big_blind_amount)
-            self.calls(game)
-            self.bets(game, raise_amount)
-            game.last_bet = raise_amount
-        # TODO# Raise without having enough to raise is all in
-        # TODO# Raise must be >=big blind, and >= previous bet (DONE, but move to decides)
-        # TODO# Check if player has money to raise (probably in decide)
+        self.calls(game)
+        self.bets(game, raise_amount)
+        game.previous_bet = raise_amount
 
     def folds(self, game):
         self.bet = 0
@@ -153,16 +235,27 @@ class Game:
         self.dealer_loc = -1
         self.round_bool = None
         self.update_bool = True
-        # self.big_blind = []
-        # self.small_blind = []
         self.actions_remaining = 0
         self.hand_count = 0
         self.acting_player = None
-        self.last_bet = 0
+        self.previous_bet = 0
+        self.round_done = False
 
     def deal_cards(self):
         for i in range(0, self.num_p):
             self.players[i].cards = self.cards[5 + i * 2:7 + i * 2]
+            # Highest value card is first
+            if self.players[i].cards[0].value < self.players[i].cards[1].value:
+                self.players[i].cards[0], self.players[i].cards[1] = self.players[i].cards[1], self.players[i].cards[0]
+
+            if self.players[i].cards[0].value == self.players[i].cards[0].value and self.players[i].cards[0].suit < \
+                    self.players[i].cards[1].suit:
+                self.players[i].cards[0].suit, self.players[i].cards[1].suit = self.players[i].cards[1].suit, \
+                    self.players[i].cards[0].suit
+
+            # Each player calculates the value of their starting hand
+            # for player in self.players:
+            #    player.value_starting_hand()
 
     def next_dealer_pos(self):
         if self.dealer_loc + 1 < self.num_p:
@@ -173,31 +266,36 @@ class Game:
     def post_blinds(self):
         if self.dealer_loc < self.num_p - 2:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
-            self.players[self.dealer_loc + 2].raises(self, self.big_blind_amount)
+            self.players[self.dealer_loc + 2].bets(self, self.big_blind_amount)
         elif self.dealer_loc < self.num_p - 1:
             self.players[self.dealer_loc + 1].bets(self, self.small_blind_amount)
-            self.players[0].raises(self, self.big_blind_amount)
+            self.players[0].bets(self, self.big_blind_amount)
         else:
             self.players[0].bets(self, self.small_blind_amount)
-            self.players[1].raises(self, self.big_blind_amount)
+            self.players[1].bets(self, self.big_blind_amount)
 
     def new_game(self):
         if self.pot != 0:
-            for player in self.players:
-                print(player.chips, player.bet)
+            for player in self.hand_players:
                 player.chips += player.bet
                 player.bet = 0
             self.pot = 0
+            for player in self.players:
+                player.bet = 0
         self.hand_count += 1
-        self.hand_players = self.players
         self.current_bet = 0
-        self.winner_num = -1
         self.state = "pre_flop"
+        self.hand_players = self.players.copy()
+        for player in self.players:  # Knocked out players don't participate in next hand.
+            if player.chips <= 0:
+                self.hand_players.remove(player)
         self.cards = draw_cards(5 + len(self.players) * 2)
         self.deal_cards()
+        for player in self.hand_players:
+            player.value_starting_hand()
         self.next_dealer_pos()
-        self.post_blinds()
         self.update_acting_player()
+        self.post_blinds()
 
     def next_stage(self):
         if self.state == 'not_started':
@@ -212,17 +310,46 @@ class Game:
             self.state = 'showdown'
 
     def decide_winner(self):
-        max_value = 0
-        for i in range(0, self.num_p):
-            valued_cards = self.players[i].cards + self.cards[0:5]
-            self.players[i].best_five, self.players[i].value = best_cards(valued_cards)
-            self.players[i].bet = 0
-            if self.players[i].value > max_value:
-                max_value = self.players[i].value
-                self.winner_num = i
+        highest_showdown_value = -1
+        winners = []
+        for player in self.players:  # Assign all players their best cards and the showdown value of these cards
+            if player in self.hand_players:  # Player participating in showdown
+                valued_cards = player.cards + self.cards[0:5]
+                player.best_five, player.showdown_value = best_cards(valued_cards)
+            else:  # player is not playing so no cards and negative value for redundancy
+                player.best_five, player.showdown_value = [], -1
+        # Sort according to showdown value, with
+        self.hand_players = sorted(self.hand_players, key=lambda p: p.showdown_value, reverse=True)
+        # Players participating in showdown are sorted in descending showdown value
+        # highest_showdown_value=self.hand_players[0].showdown_value
 
-        self.players[self.winner_num].chips += self.pot
-        self.pot = 0
+        for player in self.hand_players:
+            # for each player still playing
+            for paying_player in self.hand_players:
+                # go through OTHER players
+                if player != paying_player:
+                    player.playing_for += min(paying_player.bet, player.bet)
+                    # find how much player is playing for. It's min of their own bet, and other player bet
+
+        while self.pot > 0:
+            paid_players = []  # find which player(s) have top score
+            for player in self.hand_players:
+                # player has top score so is in winners
+                if player.showdown_value == self.hand_players[0].showdown_value:
+                    paid_players.append(player)
+
+            # (Current) Top score players have been found.
+            # Loop through them and give them min (their fraction of the pot, what they are playing for)
+            for player in paid_players:
+                # player gets what they are playing for, or their share of pot
+                player.chips += min(player.playing_for, self.pot / len(paid_players))
+                # remove same amount from pot
+                self.pot -= min(player.playing_for, self.pot / len(paid_players))
+                # player has been paid so remove.
+                self.players.remove(player)
+
+        for player in self.players:
+            player.bet = 0
 
     def update_game(self):
         # self.next_dealer_pos()
@@ -233,21 +360,18 @@ class Game:
         #  seats.
         if self.acting_player is None:
             self.acting_player = self.players[2]
-
         seat_check = self.acting_player.seat_number
-        # print(f"Seat Check is{seat_check} before if")
         if seat_check + 1 < len(self.players):  # if next seat exists
             seat_check += 1  # check next seat (normally)
         else:
             seat_check = 0  # else loop to first seat
-        # print(f"Seat Check is{seat_check} after if")
+
         while self.players[seat_check] not in self.hand_players:  # while next player not in game
             if seat_check + 1 < len(self.players):  # if next seat exists
                 seat_check += 1  # check next seat (normally)
             else:
                 seat_check = 0  # else loop to first seat
 
-        # print(f"acting player is now{self.acting_player.name}")
         self.acting_player = self.players[seat_check]
 
     def decide_acting_player(self):
@@ -260,7 +384,6 @@ class Game:
             seat_check = self.dealer_loc + increment
         else:
             seat_check = self.dealer_loc + increment - self.num_p - 1
-
         while self.players[seat_check] not in self.hand_players:
             if seat_check + 1 <= self.num_p:
                 seat_check += 1
@@ -270,35 +393,40 @@ class Game:
         self.acting_player = self.players[seat_check]
 
     def betting_round(self):
-        # print(self.state)
+        self.decide_acting_player()
         print(f'-------------------NEW BETTING ROUND-{self.state}-----------------')
         self.actions_remaining = len(self.hand_players)
 
         while self.actions_remaining > 0:
-            decision, bet_amount, raise_amount = self.acting_player.decides(game=self)
-            self.acting_player.takes_action(game=self, decision=decision, bet_amount=bet_amount,
-                                            raise_amount=raise_amount)
-            # Can show each player action draw_gui(self) time.sleep(2) print(f"{self.acting_player.name},
-            # {decision}s,PBet:{self.acting_player.bet}, Pot:{self.pot},CBet={self.current_bet}")
+            self.acting_player.decides(game=self)
+            self.acting_player.takes_action(game=self, decision=self.acting_player.decision,
+                                            bet_amount=self.acting_player.bet_amount,
+                                            raise_amount=self.acting_player.raise_amount)
+            # Can show each player action
+            render_gui(self)
+            time.sleep(0.5)
+            print(
+                f"{self.acting_player.name},{self.acting_player.decision}s,C.Bet={self.current_bet},P.Bet:{self.acting_player.bet}, Pot:{self.pot},SHand Value:{round(self.acting_player.starting_hand_value, 2)}")
 
             self.update_acting_player()
+
+        self.next_stage()
         self.round_bool = False
+        self.round_done = True
 
     def run_main(self):
 
         self.new_game()
         run = True
         while run:
-            draw_gui(self)
+            render_gui(self)
             # time.sleep(1)
             if self.round_bool:
                 self.betting_round()
-            draw_gui(self)
+            time.sleep(1)
+            render_gui(self)
             self.clock.tick(60)
-            """""""""
-            while self.update_bool:
-                self.update_game()
-            """""""""
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     run = False
@@ -308,11 +436,12 @@ class Game:
                         run = False
                         break
                     if event.key == pygame.K_n:
-                        self.new_game()
+                        if self.state != "pre_flop":
+                            self.new_game()
+                        else:
+                            print("A new game is already being played")
                     if event.key == pygame.K_p:
-                        self.decide_acting_player()
-                        self.next_stage()
-                        if self.state != "showdown":
+                        if self.state != "showdown" and self.state != "not_started":
                             self.round_bool = True
                 if event.type == pygame.MOUSEBUTTONDOWN:  # if you click, show mouse position, useful for placing
                     # buttons
@@ -322,10 +451,10 @@ class Game:
 
 
 if __name__ == '__main__':
-    # g = Game(num_p=6)
-    # g.run_main()
+    g = Game(num_p=6)
+    # g.new_game()
+    g.run_main()
 
     # Simulate 5 common cards 1000 times,rank all 1326 starting hands based on ratio of 1326 hands they beat
-    df = simulate(n_hands=1000, output_save_loc="Data/hand_rankings_1000.xlsx")
-    # df=pd.read_excel("Data/hand_rankings_1000.xlsx")
-    pass
+    # df = simulate(n_hands=10, output_save_loc="Data/hand_rankings_100.xlsx")
+    # df = pd.read_excel("Data/hand_rankings_1000.xlsx")

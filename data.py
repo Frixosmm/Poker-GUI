@@ -4,6 +4,12 @@ from best_cards import best_cards
 from draw_cards import Card, draw_cards
 
 
+def swap_values(row):
+    if row['Card_1_Value'] == row['Card_2_Value'] and row['Card_1_Suit'] < row['Card_2_Suit']:
+        row['Card_1_Suit'], row['Card_2_Suit'] = row['Card_2_Suit'], row['Card_1_Suit']
+    return row
+
+
 def all_possible_starting_hands(output_location="Data/starting_hands"):
     p_hands = []
     count = 0
@@ -61,9 +67,13 @@ def simulate(n_hands=1, n_common_cards=5, starting_hands_file_path="Data/startin
     df["Score"] = df["Score"] / n_hands  # Average over n_hands common card combinations
     print("Ranking Complete")
     df = df.sort_values(by="Score", ascending=False)
-    df.drop(columns=["Temp_hand_value","Card_1","Card_2"], inplace=True)
+    df.drop(columns=["Temp_hand_value", "Card_1", "Card_2"], inplace=True)
     df = df.reset_index(drop=True)
-    df.to_excel(output_save_loc,index=False)
+    df = df.sort_values(by=["Card_2_Suit", "Card_1_Suit", "Card_2_Value", "Card_1_Value"])
+
+    # Apply the swapping function to each row so that (14,2),(14,3) ->(14,3),(14,2)
+    df = df.apply(swap_values, axis=1)
+
+    df.to_excel(output_save_loc, index=False)
     print(f"File has been saved as:{output_save_loc}")
     return df
-
