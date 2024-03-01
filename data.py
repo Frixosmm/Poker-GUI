@@ -1,7 +1,6 @@
 import pandas as pd
 
-from best_cards import best_cards
-from draw_cards import Card, draw_cards
+from card import draw_cards, Card, best_cards
 
 
 def swap_values(row):
