@@ -97,9 +97,8 @@ class Player:
                 print("Player decision not recognised")
                 player.valid_choice = False
         else:  # If no opponents exist or player not in game, or player is in game but has 0 chips, player does nothing
-            player.decision = None
-
-        return
+            player.decision = "Wait"
+            self.valid_choice = True
 
     def decides(self, game):
         self.decision = None
@@ -114,12 +113,13 @@ class Player:
             else:
                 self.decision = "call"
         elif self.starting_hand_value >= 0.7:
-            if game.pot <= 100:
+            if game.pot <= 500:
                 self.decision = "bet"
-                self.bet_amount = game.big_blind_amount
-            else:
+                self.bet_amount = game.big_blind_amount * 3
+            elif self.bet==game.current_bet:
                 self.decision = "check"
-
+            else:
+                self.decision= "call"
         self.check_valid_choice(game)
         if self.valid_choice:
             pass
@@ -176,4 +176,3 @@ class Player:
         elif decision == 'none':
             pass
         game.actions_remaining -= 1
-

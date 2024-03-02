@@ -2,9 +2,6 @@ import random
 import pygame
 
 
-# TODO# Belongs in gui/inside card class?
-
-
 class Card:
     def __init__(self):
         self.value = random.randint(2, 14)
@@ -96,12 +93,12 @@ def value_cards(cards):
         elif counts_store.count(2) == 1:
             if counts_store.count(3) == 1:
                 value = 60000
-                for i in range(1, 15):
-                    if counts_store[i - 1] == 3:
-                        value = value + (i - 1) * 100
+                for i in range(0, 14):
+                    if counts_store[i] == 3:
+                        value = value + (i + 2) * 100
                         # the 3 of a kind is valued higher than the pair
-                    elif counts_store[i - 1] == 2:
-                        value = value + i - 1
+                    elif counts_store[i] == 2:
+                        value = value + i + 2
                 # print("full house")
             else:
                 value = 10000
@@ -116,37 +113,37 @@ def value_cards(cards):
             # print("two_pairs")
             value = 20000
             lowest_pair = True
-            for i in range(1, 15):
-                if counts_store[i - 1] == 2:
+            # First pair to find is the lowest pair of the two.
+            for i in range(0, 14):
+                if counts_store[i] == 2:
                     if lowest_pair:
-                        value = value + (i - 1)
+                        value = value + (i + 2)
                         lowest_pair = False
                     else:
                         # high_pair
-                        value = value + (i - 1) * 100
-                elif counts_store[i - 1] == 1:
-                    value = value + (i - 1) * 0.001
+                        value = value + (i + 2) * 100
+                elif counts_store[i] == 1:
+                    value = value + (i + 2) * 0.001  # 5th card
         elif counts_store.count(3) == 1:
             value = 30000
             low_kicker = True
-            # print("three of a kind")
-            for i in range(1, 15):
-                if counts_store[i - 1] == 3:
+            for i in range(0, 14):
+                if counts_store[i] == 3:
+                    value = value + (i + 2) * 100  # value contribution of 3 of a kind
+                elif counts_store[i] == 1:
                     if low_kicker:
-                        value = value + (i - 1)
+                        value = value + (i + 2) * 0.0001  # value contribution of "low" kicker
                         low_kicker = False
-                    value = value + (i - 1) * 100
-                elif counts_store[i - 1] == 1:
-                    value = value + (i - 1) * 0.001
-
+                    else:
+                        value = value + (i + 2) * 0.01  # value contribution of "high" kicker
         elif counts_store.count(4) == 1:
             value = 70000
             # print("four of a kind")
-            for i in range(1, 15):
-                if counts_store[i - 1] == 4:
-                    value = value + (i - 1) * 100
-                elif counts_store[i - 1] == 1:
-                    value = value + i - 1
+            for i in range(0, 14):
+                if counts_store[i] == 4:
+                    value = value + (i + 2) * 100
+                elif counts_store[i] == 1:
+                    value = value + i + 2
     elif len(cards) == 2:
         print("not implemented for 2 cards")
     elif len(cards) == 6:
@@ -157,25 +154,25 @@ def value_cards(cards):
 
 
 def categorize_value(value):
-    if 0 <= value <= 10000:
+    if 0 <= value < 10000:
         return "High Card"
-    elif 10001 <= value <= 20000:
+    elif 10000 <= value < 20000:
         return "Pair"
-    elif 20001 <= value <= 30000:
+    elif 20000 <= value < 30000:
         return "Two Pair"
-    elif 30001 <= value <= 40000:
+    elif 30000 <= value < 40000:
         return "Three of a Kind"
-    elif 40001 <= value <= 50000:
+    elif 40000 <= value < 50000:
         return "Straight"
-    elif 50001 <= value <= 60000:
+    elif 50000 <= value < 60000:
         return "Flush"
-    elif 60001 <= value <= 70000:
+    elif 60000 <= value < 70000:
         return "Full House"
-    elif 70001 <= value <= 80000:
+    elif 70000 <= value < 80000:
         return "Four of a Kind"
-    elif 80001 <= value <= 90000:
+    elif 80000 <= value < 90000:
         return "Straight Flush"
-    elif 90001 <= value <= 100000:
+    elif 90000 <= value < 100000:
         return "Royal Flush"
     else:
         return "Invalid value"

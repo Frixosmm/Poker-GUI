@@ -6,14 +6,14 @@ from card import categorize_value
 
 
 class GUI:
-    def __init__(self, delay=0):
+    def __init__(self, delay=1):
         self.delay = delay
-        
+
         self.width = 1920 / 2
         self.height = 1080 / 2
         self.card_width = 50
         self.card_height = 100
-        
+
         self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Texas Holdem")
         pygame.font.init()
@@ -26,7 +26,8 @@ class GUI:
                                (self.width / 2, 2 * self.height / 2.7),
                                (self.width / 8, 2 * self.height / 2.7),
                                (self.width / 8, self.height / 8)]
-        self.joker = pygame.transform.scale(pygame.image.load("Cards/red_joker.png"), (self.card_width, self.card_height))
+        self.joker = pygame.transform.scale(pygame.image.load("Cards/red_joker.png"),
+                                            (self.card_width, self.card_height))
 
     def render_gui(self, game):
         self.render_bg()
@@ -42,8 +43,8 @@ class GUI:
             game.common_cards_shown = 5
             self.render_pot(game)
             self.render_shown_cards(game)
-            game.decide_winner()
-            self.render_winner(game)
+            # game.decide_winner()
+            self.render_winners(game)
 
         elif game.state == 'not_started':
             game.common_cards_shown = 0
@@ -68,13 +69,14 @@ class GUI:
             game.common_cards_shown = 5
             self.render_pot(game)
             self.render_shown_cards(game)
-            game.decide_winner()
-            self.render_winner(game)
+            # game.decide_winner()
+            self.render_winners(game)
         # print common cards according to game stage (depending on game.common_cards_shown)
         card_position = 0
         for card in cards[0:game.common_cards_shown]:
             self.display.blit(card.image, (
-                self.width / 2 + card_position * self.card_width - 2.5 * self.card_width, (self.height / 2) - 0.5 * self.card_height))
+                self.width / 2 + card_position * self.card_width - 2.5 * self.card_width,
+                (self.height / 2) - 0.5 * self.card_height))
             card_position += 1
 
         pygame.display.update()
@@ -89,11 +91,18 @@ class GUI:
                 self.display.blit(self.joker, (self.seat_positions[i][0] + self.card_width, self.seat_positions[i][1]))
 
     def render_shown_cards(self, game):
-        for i in range(0, game.num_p):
-            if game.players[i] in game.hand_players:
-                self.display.blit(game.players[i].cards[0].image, self.seat_positions[i])
-                self.display.blit(game.players[i].cards[1].image,
-                                  (self.seat_positions[i][0] + self.card_width, self.seat_positions[i][1]))
+        if not game.split:
+            for i in range(0, game.num_p):
+                if game.players[i] in game.hand_players:
+                    self.display.blit(game.players[i].cards[0].image, self.seat_positions[i])
+                    self.display.blit(game.players[i].cards[1].image,
+                                      (self.seat_positions[i][0] + self.card_width, self.seat_positions[i][1]))
+        else:
+            for player in game.split_winners:
+                self.display.blit(player.cards[0].image, self.seat_positions[player.seat_number])
+                self.display.blit(player.cards[1].image,
+                                  (self.seat_positions[player.seat_number][0] + self.card_width,
+                                   self.seat_positions[player.seat_number][1]))
 
     def render_player_info(self, game):
         for player in game.players:
@@ -109,11 +118,19 @@ class GUI:
         pot_text = self.font.render(f"Pot:{game.pot}", 1, "red")
         self.display.blit(pot_text, (self.width / 2, self.height / 2 + self.height / 10))
 
-    def render_winner(self, game):
-        winner = game.players[game.winner_num]
-        winner_text = self.font.render(f"{winner.name} WINS with:{categorize_value(winner.showdown_value)}", 1, "blue")
-        self.display.blit(winner_text, (358, 200))
-        return game
+    def render_winners(self, game):
+        if not game.split:
+            winner = game.players[game.winner_loc]
+            winner_text = self.font.render(f"{winner.name} WINS with:{categorize_value(winner.showdown_value)}", 1,
+                                           "blue")
+            self.display.blit(winner_text, (358, 200))
+
+        else:
+            winners_names = ','.join(player.name for player in game.split_winners)
+            winner_text_1 = self.font.render(f"The pot is split. Winners are:", 1, "blue")
+            winner_text_2 = self.font.render(f"{winners_names}", 1, "blue")
+            self.display.blit(winner_text_1, (330, 180))
+            self.display.blit(winner_text_2, (330, 200))
 
     def render_dealer(self, game):
         dealer_text = self.font.render(f"D", 1, "red")
