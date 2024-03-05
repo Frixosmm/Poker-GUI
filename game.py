@@ -4,6 +4,7 @@ import pygame
 
 from card import draw_cards, best_cards, categorize_value
 from player import Player
+from constants import *
 
 
 class Game:
@@ -31,7 +32,7 @@ class Game:
         self.common_cards_show = 0
         self.dealer_loc = self.hand_players[-1].seat_number
 
-        self.round_bool = None
+        self.new_round = None
         self.update_bool = True
         self.actions_remaining = 0
         self.hand_count = 0
@@ -108,16 +109,20 @@ class Game:
         ####test
         """""""""
         for player in self.hand_players:
-            player.cards[0].make_specific(14, 2)
-            player.cards[1].make_specific(14, 1)
+            player.cards[0].make_specific(4, 3)
+            player.cards[1].make_specific(2, 1)
 
-        self.hand_players[2].cards[0].make_specific(2, 2)
-        self.hand_players[2].cards[1].make_specific(2, 1)
+        self.hand_players[2].cards[0].make_specific(11, 1)
+        self.hand_players[2].cards[1].make_specific(2, 2)
 
-        self.hand_players[3].cards[0].make_specific(4, 2)
-        self.hand_players[3].cards[1].make_specific(3, 1)
-        self.cards[0].make_specific(2, 3)
-        self.cards[1].make_specific(14, 3)
+        self.hand_players[3].cards[0].make_specific(11, 3)
+        self.hand_players[3].cards[1].make_specific(4, 2)
+        self.cards[0].make_specific(10, 2)
+        self.cards[1].make_specific(9, 2)
+        self.cards[2].make_specific(8, 2)
+        self.cards[3].make_specific(14, 3)
+        self.cards[4].make_specific(6, 2)
+
         ####test
         """""""""
         for player in self.hand_players:
@@ -126,6 +131,9 @@ class Game:
         # self.update_acting_player()
         self.post_blinds()
         self.winners_found = False
+
+        self.split=False
+        self.split_winners=[]
 
     def next_stage(self):
         if self.state == 'not_started':
@@ -141,7 +149,8 @@ class Game:
 
     def decide_winner(self):
         print("-------------------SHOWDOWN-----------------")
-
+        # TODO # When player has highest showdown value, but has bet less than others, he currently gets the whole
+        #  pot, instead of his share.
         if len(self.hand_players) == 1:
             # Single player so single winner
             self.winner_loc = self.players.index(self.hand_players[0])
@@ -156,6 +165,10 @@ class Game:
             # sort active players according to showdown value
 
             if self.hand_players[0].showdown_value != self.hand_players[1].showdown_value:
+                # TODO # Wrong, there is  still the case that player is entitled to less money than pot,so loop over
+                #  hand players and receive minimum of paying players bet, paid players bet and pot. remove amount
+                #  from pot, do until pot is 0.
+
                 self.winner_loc = self.players.index(self.hand_players[0])
                 self.players[self.winner_loc].chips += self.pot
                 self.pot = 0
@@ -190,8 +203,8 @@ class Game:
                         pie_of_pot = 0
                     for player in paid_players:
                         # player gets what they are playing for, or their share of pot
-                        player.chips += min(player.playing_for, pie_of_pot)
-                        self.pot -= min(player.playing_for, pie_of_pot)
+                        player.chips += min(player.playing_for, pie_of_pot,self.pot)
+                        self.pot -= min(player.playing_for, pie_of_pot,self.pot)
                         # player has been paid so remove from playing players.
                         self.hand_players.remove(player)
 
@@ -222,7 +235,7 @@ class Game:
             self.update_acting_player()
 
         self.next_stage()
-        self.round_bool = False
+        self.new_round = False
         self.round_done = True
 
     def run_main(self, gui):
@@ -231,7 +244,7 @@ class Game:
         while run:
             gui.render_gui(self)
             # time.sleep(1)
-            if self.round_bool:
+            if self.new_round:
                 self.betting_round(gui)
             time.sleep(gui.delay)
             gui.render_gui(self)
@@ -240,28 +253,25 @@ class Game:
             if self.state == "showdown" and not self.winners_found:
                 self.decide_winner()
 
-            if self.round_done:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
+                    break
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
                         run = False
                         break
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_ESCAPE:
-                            run = False
-                            break
-                        if event.key == pygame.K_n:
-                            if self.state != "pre_flop":
-                                self.new_game()
-                            else:
-                                print("A new game is already being played")
-                        if event.key == pygame.K_p:
-                            if self.state != "showdown" and self.state != "not_started":
-                                self.round_bool = True
-                    if event.type == pygame.MOUSEBUTTONDOWN:  # if you click, show mouse position, useful for placing
-                        # buttons
-                        print(pygame.mouse.get_pos())
-            else:
-                print("Please wait for the round to end...")
+                    if event.key == pygame.K_n:
+                        if self.state != "pre_flop":
+                            self.new_game()
+                        else:
+                            print("A new game is already being played")
+                    if event.key == pygame.K_p:
+                        if self.state != "showdown" and self.state != "not_started":
+                            self.new_round = True
+                if event.type == pygame.MOUSEBUTTONDOWN:  # if you click, show mouse position, useful for placing
+                    print(pygame.mouse.get_pos())
+
         pygame.quit()
 
     def update_acting_player(self):

@@ -35,6 +35,8 @@ class Player:
             self.starting_hand_value = result.iloc[0, 4]
 
     def check_valid_choice(self, game):
+        # TODO # Raise is only valid if previous bet is >0, else player.bets with bet_amount=raise amount?
+        # TODO # Bet is only valid if it is at least one big blind (and no previous bet exists, else its a raise)
         player = self
         if player.chips > 0 and len(game.hand_players) > 1 and (player in game.hand_players):
             # If opponents exist and player is still in the game and has chips
@@ -63,6 +65,7 @@ class Player:
 
             elif player.decision == "bet":
                 if player.chips >= game.current_bet - player.bet + player.bet_amount:  # Has enough to call AND bet
+
                     player.valid_choice = True
                 elif player.chips >= game.current_bet - player.bet:  # Has enough to call only
                     player.decision = "call"
@@ -75,7 +78,7 @@ class Player:
 
             elif player.decision == "raise":  # TODO# It is only a raise if someone has previously bet
                 if player.chips >= game.current_bet - player.bet + player.raise_amount:  # Has enough to call AND raise
-                    if player.raise_amount >= game.big_blind_amount and player.raise_amount >= game.previous_bet:  # Raise amount is player.valid
+                    if player.raise_amount >= game.big_blind_amount and player.raise_amount >= game.previous_bet:  # Raise amount is valid
                         player.valid_choice = True
 
                     else:  # Raise amount is invalid but player has enough to raise the minimum
@@ -105,21 +108,27 @@ class Player:
         self.bet_amount = 0
         self.raise_amount = 0
 
-        if self.starting_hand_value < 0.55 and self.bet < game.current_bet and len(game.hand_players) != 1:
+        if self.starting_hand_value < 0.30 and self.bet < game.current_bet and len(game.hand_players) != 1:
             self.decision = "fold"
-        elif self.starting_hand_value < 0.7:
+        elif self.starting_hand_value < 0.5:
             if self.bet == game.current_bet:
                 self.decision = "check"
             else:
                 self.decision = "call"
-        elif self.starting_hand_value >= 0.7:
+        elif self.starting_hand_value < 0.8:
             if game.pot <= 500:
                 self.decision = "bet"
-                self.bet_amount = game.big_blind_amount * 3
-            elif self.bet==game.current_bet:
+                self.bet_amount = max(game.big_blind_amount , game.pot * 0.5)
+            elif self.bet == game.current_bet:
                 self.decision = "check"
+            elif (game.current_bet-self.bet)/(game.pot/len(game.hand_players))< 1: # If amount needed to call is less than pot/num players in game.
+                self.decision = "call"
             else:
-                self.decision= "call"
+                self.decision = "fold"
+        elif self.starting_hand_value >= 0.8 and self.chips>0:
+            self.decision = "all-in"
+        else:
+            pass
         self.check_valid_choice(game)
         if self.valid_choice:
             pass
@@ -137,6 +146,7 @@ class Player:
         game.current_bet += bet_amount
         self.bet = game.current_bet
         self.chips -= bet_amount
+
         game.actions_remaining = len(game.hand_players)
 
     def calls(self, game):
@@ -155,10 +165,8 @@ class Player:
         self.cards = None
 
     def all_ins(self, game):
-        game.pot += self.chips
-        self.bet += self.chips
-        self.chips = 0
-        game.current_bet += self.bet
+        self.calls(game)
+        self.bets(game,bet_amount=max(0,self.chips))
 
     def takes_action(self, game, decision, bet_amount=0, raise_amount=0):
         if decision == "check":

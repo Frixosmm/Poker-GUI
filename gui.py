@@ -3,22 +3,23 @@ import time
 import pygame
 
 from card import categorize_value
+from constants import *
 
 
 class GUI:
     def __init__(self, delay=1):
         self.delay = delay
 
-        self.width = 1920 / 2
-        self.height = 1080 / 2
-        self.card_width = 50
-        self.card_height = 100
+        self.width = DISPLAY_WIDTH
+        self.height = DISPLAY_HEIGHT
+        self.card_width = CARD_WIDTH
+        self.card_height = CARD_HEIGHT
 
         self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Texas Holdem")
         pygame.font.init()
         self.font = pygame.font.SysFont('comicsans', 30)
-        self.background = pygame.transform.scale(pygame.image.load('Images/poker_table.jpeg'),
+        self.background = pygame.transform.scale(pygame.image.load('Images/no back wood d2.png'),
                                                  (self.width, self.height))
         self.seat_positions = [(self.width / 2, self.height / 8),
                                (7 * self.width / 8, self.height / 8),
@@ -75,7 +76,7 @@ class GUI:
         card_position = 0
         for card in cards[0:game.common_cards_shown]:
             self.display.blit(card.image, (
-                self.width / 2 + card_position * self.card_width - 2.5 * self.card_width,
+                self.width / 2.08 + card_position * (self.card_width * 1.2) - 2.5 * self.card_width,
                 (self.height / 2) - 0.5 * self.card_height))
             card_position += 1
 
@@ -88,7 +89,8 @@ class GUI:
         for i in range(0, game.num_p):
             if game.players[i] in game.hand_players:
                 self.display.blit(self.joker, self.seat_positions[i])
-                self.display.blit(self.joker, (self.seat_positions[i][0] + self.card_width, self.seat_positions[i][1]))
+                self.display.blit(self.joker,
+                                  (self.seat_positions[i][0] + self.card_width, self.seat_positions[i][1]))
 
     def render_shown_cards(self, game):
         if not game.split:
@@ -123,14 +125,14 @@ class GUI:
             winner = game.players[game.winner_loc]
             winner_text = self.font.render(f"{winner.name} WINS with:{categorize_value(winner.showdown_value)}", 1,
                                            "blue")
-            self.display.blit(winner_text, (358, 200))
+            self.display.blit(winner_text, (0.44 * self.width, 0.64 * self.height))
 
         else:
             winners_names = ','.join(player.name for player in game.split_winners)
             winner_text_1 = self.font.render(f"The pot is split. Winners are:", 1, "blue")
             winner_text_2 = self.font.render(f"{winners_names}", 1, "blue")
-            self.display.blit(winner_text_1, (330, 180))
-            self.display.blit(winner_text_2, (330, 200))
+            self.display.blit(winner_text_1, (0.44 * self.width, 0.64 * self.height))
+            self.display.blit(winner_text_2, (0.44 * self.width, 0.66 * self.height))
 
     def render_dealer(self, game):
         dealer_text = self.font.render(f"D", 1, "red")
@@ -143,4 +145,42 @@ class GUI:
         self.display.blit(time_text, (0, 0))
 
     def render_bg(self):
+        self.display.fill("gray")
         self.display.blit(self.background, (0, 0))
+
+    """""""""
+    def render_call_check_button(self, game):
+        # Draw the button
+        font = pygame.font.Font(None, 36)
+        if game.players[3].bet != game.current_bet:
+            text = font.render("Call", True, "white")
+        else:
+            text = font.render("Check", True, "white")
+        text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
+        pygame.draw.rect(self.display, "black", (button_x, button_y, button_width, button_height))
+        self.display.blit(text, text_rect)
+
+    
+    def render_fold_button(self):
+        # Draw the button
+        font = pygame.font.Font(None, 36)
+        text_2 = font.render("Fold", True, "white")
+        text_rect_2 = text_2.get_rect(center=(button_x+button_width*1.05 + button_width // 2 , button_y + button_height // 2))
+        pygame.draw.rect(self.display, "black", (button_x+button_width*1.05, button_y, button_width, button_height))
+        self.display.blit(text_2, text_rect_2)
+
+    def render_raise_sliding_bar(self):
+        font = pygame.font.Font(None, 24)
+
+        # Draw the bar
+        pygame.draw.rect(self.display, "yellow", (bar_x, bar_y, bar_width, bar_height))
+
+        # Draw the handle
+        pygame.draw.rect(self.display, "blue", (handle_x, handle_y, handle_width, handle_height))
+
+        # Draw value text
+        value_text = font.render(
+            f"{int((handle_x - bar_x) / (bar_width - handle_width) * (max_value - min_value) + min_value)}", True,
+            "BLACK")
+        self.display.blit(value_text, (bar_x + bar_width + 10, bar_y + (bar_height - value_text.get_height()) // 2))
+    """""""""

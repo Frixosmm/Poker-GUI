@@ -1,5 +1,6 @@
 import random
 import pygame
+from constants import CARD_WIDTH,CARD_HEIGHT
 
 
 class Card:
@@ -7,9 +8,11 @@ class Card:
         self.value = random.randint(2, 14)
         self.suit = random.randint(1, 4)
         self.combo = (self.value, self.suit)
+        self.height=CARD_HEIGHT
+        self.width=CARD_WIDTH
         self.image = self.generate_card_image()
 
-    def generate_card_image(self, card_height=100, card_width=50):
+    def generate_card_image(self):
         # Define mappings for special card values
         value_mapping = {11: 'jack', 12: 'queen', 13: 'king', 14: 'ace'}
         suit_mapping = {1: 'hearts', 2: 'spades', 3: 'diamonds', 4: 'clubs'}
@@ -20,7 +23,7 @@ class Card:
 
         # Generate the desired string format
         result_string = f"Cards/{card_value}_of_{card_suit}.png"
-        card_image = pygame.transform.scale(pygame.image.load(result_string), (card_width, card_height))
+        card_image = pygame.transform.scale(pygame.image.load(result_string), (self.width, self.height))
 
         return card_image
 
@@ -76,7 +79,8 @@ def value_cards(cards):
                             value = 40000
                             value = value + sorted_cards[4]
                             # print("straight")
-
+            #TODO# Flush is valued incorrectly when 4 same suit on board and difference is on final player card...
+            # Could also have to do with split working incorrectly? Seems like it's the latter.
             if cards_suit[0] == cards_suit[1] == cards_suit[2] == cards_suit[3] == cards_suit[4]:
                 value = 50000 + (sorted_cards[-1] * 100) + (sorted_cards[-2] * 1) + (sorted_cards[-3] * 0.01) + (
                         sorted_cards[
