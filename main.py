@@ -12,6 +12,6 @@ from gui import GUI
 
 if __name__ == '__main__':
     game = Game(num_p=6)
-    game.run_main(GUI(delay=0.2))
+    game.run_main(GUI(delay=0))
     # game.new_game()
     # game.betting_round(gui=None)

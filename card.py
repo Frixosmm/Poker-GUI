@@ -1,6 +1,7 @@
+import itertools
 import random
 import pygame
-from constants import CARD_WIDTH,CARD_HEIGHT
+from constants import CARD_WIDTH, CARD_HEIGHT
 
 
 class Card:
@@ -8,8 +9,8 @@ class Card:
         self.value = random.randint(2, 14)
         self.suit = random.randint(1, 4)
         self.combo = (self.value, self.suit)
-        self.height=CARD_HEIGHT
-        self.width=CARD_WIDTH
+        self.height = CARD_HEIGHT
+        self.width = CARD_WIDTH
         self.image = self.generate_card_image()
 
     def generate_card_image(self):
@@ -46,7 +47,7 @@ def draw_cards(number):
 
 
 def value_cards(cards):
-    value = None
+    value = 0.0
     if len(cards) == 5:
         cards_value = [0, 0, 0, 0, 0]
         cards_suit = [0, 0, 0, 0, 0]
@@ -54,9 +55,9 @@ def value_cards(cards):
             cards_value[x] = cards[x].value
             cards_suit[x] = cards[x].suit
 
-        counts_store = [0] * 14
-        for i in range(1, 15):  # from 2 to 14 counts how many of "2" or "3" etc. there are.
-            counts_store[i - 2] = cards_value.count(i)
+        counts_store = [0] * 13
+        for i in range(1, 14):  # from 2 to 14 counts how many of "2" or "3" etc. there are.
+            counts_store[i - 1] = cards_value.count(i + 1)
             # We can now find all the pairs, triples, four of a kind and full houses.
             # If there are only "1"'s there are no pairs.
             # If there is 1 "2" there is couple.
@@ -65,9 +66,16 @@ def value_cards(cards):
             # If there is 1 "2" and 1 "3" there is a full house.
             # If there are 2 "2" and 2 "2" there are two pairs.
         sorted_cards = sorted(cards_value)
-        value = sorted_cards[-1]  # Minimum value equal to high card?
+        # sorted_cards are in ascending value
+        # Minimum value equal to high cards
+        """"""""" High Card """""""""
+        value = (sorted_cards[-1] * 10 ** 8
+                 + sorted_cards[-2] * 10 ** 6
+                 + sorted_cards[-3] * 10 ** 4
+                 + sorted_cards[-4] * 10 ** 2
+                 + sorted_cards[-5] * 10 ** 0)
 
-        # IF ALL CARDS HAVE DIFFERENT VALUES(straight,flush,straight flush)
+        # If all cards have different values : (straight,flush,straight flush)
         if counts_store.count(1) == 5:
             straight = False
             flush = False
@@ -75,79 +83,89 @@ def value_cards(cards):
                 if sorted_cards[0] == sorted_cards[2] - 2:
                     if sorted_cards[0] == sorted_cards[3] - 3:
                         if sorted_cards[0] == sorted_cards[4] - 4:
+                            """"""""" Straight """""""""
                             straight = True
-                            value = 40000
-                            value = value + sorted_cards[4]
-                            # print("straight")
-            #TODO# Flush is valued incorrectly when 4 same suit on board and difference is on final player card...
-            # Could also have to do with split working incorrectly? Seems like it's the latter.
+                            value = 5 * 10 ** 10
+                            value = value + sorted_cards[4] * 10 ** 8
+
             if cards_suit[0] == cards_suit[1] == cards_suit[2] == cards_suit[3] == cards_suit[4]:
-                value = 50000 + (sorted_cards[-1] * 100) + (sorted_cards[-2] * 1) + (sorted_cards[-3] * 0.01) + (
-                        sorted_cards[
-                            -4] * 0.0001) + (sorted_cards[-5] * 0.000001)
+                """"""""" Flush """""""""
+                value = sum([6 * 10 ** 10,
+                             (sorted_cards[-1] * 10 ** 8)
+                                , (sorted_cards[-2] * 10 ** 6)
+                                , (sorted_cards[-3] * 10 ** 4)
+                                , (sorted_cards[-4] * 10 ** 2)
+                                , (sorted_cards[-5] * 10 ** (0))
+                             ])
                 flush = True
-                # print("flush")
             if flush and straight:
-                value = 80000
-                # print("straight flush")
+                """"""""" Straight Flush """""""""
+                value = 9 * 10 ** 10
+                value += cards[-1].value * 10 ** 8
                 if cards_value.count(14) == 1:
-                    value = 100000
-                # print("royal flush")
-        # MIXED VALUES (all other combos)#
+                    """"""""" Royal Flush """""""""
+                    value = 10 * 10 ** 11
+        # All cards don't have different values : (pair,two pair,triplets,quads,full house)
         elif counts_store.count(2) == 1:
             if counts_store.count(3) == 1:
-                value = 60000
-                for i in range(0, 14):
+                """"""""" Full-House """""""""
+                value = 7 * 10 ** 10
+                for i in range(0, 13):
                     if counts_store[i] == 3:
-                        value = value + (i + 2) * 100
+                        value = value + (i + 2) * 10 ** 8
                         # the 3 of a kind is valued higher than the pair
                     elif counts_store[i] == 2:
-                        value = value + i + 2
-                # print("full house")
+                        value = value + (i + 2) * 10 ** 6
             else:
-                value = 10000
-                for i in range(1, 15):
-                    if counts_store[i - 1] == 2:
-                        value = value + (i - 1) * 100
-                    elif counts_store[i - 1] == 1:
-                        value = value + i - 1
-                # print("one pair")
-
+                """"""""" One pair """""""""
+                value = 2 * 10 ** 10
+                c = 3
+                for i in range(0, 13):
+                    if counts_store[i] == 2:
+                        value = value + (i + 2) * 10 ** 8
+                    elif counts_store[i] == 1:
+                        value = value + (i + 2) * 10 ** (8 - 2 * c)
+                        c -= 1
         elif counts_store.count(2) == 2:
-            # print("two_pairs")
-            value = 20000
+            """"""""" Two Pairs """""""""
+            value = 3 * 10 ** 10
             lowest_pair = True
             # First pair to find is the lowest pair of the two.
-            for i in range(0, 14):
+            for i in range(0, 13):
                 if counts_store[i] == 2:
                     if lowest_pair:
-                        value = value + (i + 2)
+                        value = value + (i + 2) * 10 ** 6
                         lowest_pair = False
                     else:
                         # high_pair
-                        value = value + (i + 2) * 100
+                        value = value + (i + 2) * 10 ** 8
                 elif counts_store[i] == 1:
-                    value = value + (i + 2) * 0.001  # 5th card
+                    # 5th card
+                    value = value + (i + 2) * 10 ** 4
         elif counts_store.count(3) == 1:
-            value = 30000
+            """"""""" Three of a kind """""""""
+            value = 4 * 10 ** 10
             low_kicker = True
-            for i in range(0, 14):
+            for i in range(0, 13):
                 if counts_store[i] == 3:
-                    value = value + (i + 2) * 100  # value contribution of 3 of a kind
+                    # value contribution of 3 of a kind
+                    value = value + (i + 2) * 10 ** 8
                 elif counts_store[i] == 1:
                     if low_kicker:
-                        value = value + (i + 2) * 0.0001  # value contribution of "low" kicker
+                        # value contribution of "low" kicker
+                        value = value + (i + 2) * 10 ** 4
                         low_kicker = False
                     else:
-                        value = value + (i + 2) * 0.01  # value contribution of "high" kicker
+                        # value contribution of "high" kicker
+                        value = value + (i + 2) * 10 ** 6
         elif counts_store.count(4) == 1:
-            value = 70000
-            # print("four of a kind")
-            for i in range(0, 14):
+            """"""""" Four of a kind """""""""
+            value = 8 * 10 ** 10
+            for i in range(0, 13):
                 if counts_store[i] == 4:
-                    value = value + (i + 2) * 100
+                    value = value + (i + 2) * 10 ** 8
                 elif counts_store[i] == 1:
-                    value = value + i + 2
+                    value = value + (i + 2) * 10 ** 6
     elif len(cards) == 2:
         print("not implemented for 2 cards")
     elif len(cards) == 6:
@@ -158,25 +176,25 @@ def value_cards(cards):
 
 
 def categorize_value(value):
-    if 0 <= value < 10000:
+    if 0 <= value < 2 * 10 ** 10:
         return "High Card"
-    elif 10000 <= value < 20000:
+    elif 2 * 10 ** 10 <= value < 3 * 10 ** 10:
         return "Pair"
-    elif 20000 <= value < 30000:
+    elif 3 * 10 ** 10 <= value < 4 * 10 ** 10:
         return "Two Pair"
-    elif 30000 <= value < 40000:
+    elif 4 * 10 ** 10 <= value < 5 * 10 ** 10:
         return "Three of a Kind"
-    elif 40000 <= value < 50000:
+    elif 5 * 10 ** 10 <= value < 6 * 10 ** 10:
         return "Straight"
-    elif 50000 <= value < 60000:
+    elif 6 * 10 ** 10 <= value < 7 * 10 ** 10:
         return "Flush"
-    elif 60000 <= value < 70000:
+    elif 7 * 10 ** 10 <= value < 8 * 10 ** 10:
         return "Full House"
-    elif 70000 <= value < 80000:
+    elif 8 * 10 ** 10 <= value < 9 * 10 ** 10:
         return "Four of a Kind"
-    elif 80000 <= value < 90000:
+    elif 9 * 10 ** 10 <= value < 10 * 10 ** 10:
         return "Straight Flush"
-    elif 90000 <= value < 100000:
+    elif 10 * 10 ** 10 <= value <= 10 * 10 ** 10:
         return "Royal Flush"
     else:
         return "Invalid value"
@@ -190,37 +208,18 @@ def check_uniqueness(vectors):
     return True  # If no duplicates are found, return True
 
 
-def combinations(iterable, r):
-    # combinations('ABCD', 2) --> AB AC AD BC BD CD
-    # combinations(range(4), 3) --> 012 013 023 123
-    pool = tuple(iterable)
-    n = len(pool)
-    if r > n:
-        return
-    indices = list(range(r))
-    yield tuple(pool[i] for i in indices)
-    while True:
-        for i in reversed(range(r)):
-            if indices[i] != i + n - r:
-                break
-        else:
-            return
-        indices[i] += 1
-        for j in range(i + 1, r):
-            indices[j] = indices[j - 1] + 1
-        yield tuple(pool[i] for i in indices)
+def combinations(cards, choose=7):
+    return list(itertools.combinations(cards, choose))
 
 
 def best_cards(cards):
-    k = combinations(cards,
-                     5)  # when cards=7 this is 7 choose 5, so we can use it to find the hand with the highest value.
+    combos = combinations(cards, 5)
+    # when cards=7 this is 7 choose 5, so we can use it to find the hand with the highest value.
     best_value = 0
-    best_five = cards[0:5]
-
-    for combo in k:
-        temp = value_cards(combo)
-        if temp > best_value:
-            best_value = temp
+    best_five = []
+    for combo in combos:
+        value = value_cards(combo)
+        if value > best_value:
+            best_value = value
             best_five = combo
-
     return best_five, best_value

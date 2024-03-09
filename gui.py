@@ -1,4 +1,5 @@
 import time
+import random
 
 import pygame
 
@@ -29,10 +30,28 @@ class GUI:
                                (self.width / 8, self.height / 8)]
         self.joker = pygame.transform.scale(pygame.image.load("Cards/red_joker.png"),
                                             (self.card_width, self.card_height))
+        self.red_chip = pygame.transform.scale(pygame.image.load("Images/red_chip.png"),
+                                               (CHIP_WIDTH, CHIP_HEIGHT))
+        self.blue_chip = pygame.transform.scale(pygame.image.load("Images/blue_chip.png"),
+                                               (CHIP_WIDTH, CHIP_HEIGHT))
+        self.green_chip = pygame.transform.scale(pygame.image.load("Images/green_chip.png"),
+                                               (CHIP_WIDTH, CHIP_HEIGHT))
+        self.purple_chip = pygame.transform.scale(pygame.image.load("Images/purple_chip.png"),
+                                               (CHIP_WIDTH, CHIP_HEIGHT))
+        self.red_chip_3d = pygame.transform.scale(pygame.image.load("Images/red_chip_3d.png"),
+                                                  (CHIP_WIDTH, CHIP_HEIGHT))
+        self.stack_10_green = pygame.transform.scale(pygame.image.load("Images/10_stack_green.png"),
+                                                 (CHIP_WIDTH, CHIP_HEIGHT))
+        self.stack_5_green = pygame.transform.scale(pygame.image.load("Images/5_stack_green.png"),
+                                                 (CHIP_WIDTH, CHIP_HEIGHT))
+        self.stack_10_red = pygame.transform.scale(pygame.image.load("Images/10_stack_red.png"),
+                                                 (CHIP_WIDTH, CHIP_HEIGHT))
 
     def render_gui(self, game):
         self.render_bg()
         self.render_time(game)
+        self.render_chips_test((500, 500))
+
         cards = game.cards
         for i in range(0, len(self.seat_positions)):
             seat_text = self.font.render(f"Seat No: {i + 1}", 1, "black")
@@ -147,6 +166,15 @@ class GUI:
     def render_bg(self):
         self.display.fill("gray")
         self.display.blit(self.background, (0, 0))
+
+    def render_chips_test(self, loc=(0, 0)):
+        #for i in range(0,20):
+        #    self.display.blit(self.red_chip, (loc[0]+(i*2), loc[1]-(i+0.5)))
+        self.display.blit(self.stack_10_green
+                          , (loc[0]+35, loc[1]+10))
+        self.display.blit(self.stack_10_red, (loc[0]+55, loc[1]+20))
+        self.display.blit(self.stack_5_green, (loc[0] - 45, loc[1] - 20))
+        #self.display.blit(self.red_chip_3d, (loc[0]-35, loc[1]+20))
 
     """""""""
     def render_call_check_button(self, game):

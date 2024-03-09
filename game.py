@@ -8,10 +8,10 @@ from constants import *
 
 
 class Game:
-    def __init__(self, num_p=6, bb=10, start_funds=1000):
+    def __init__(self, num_p=6, bb=2, start_funds=100):
         self.num_p = num_p
         self.clock = pygame.time.Clock()
-        self.start_time = time.time()  # TODO# Start time of application != start time of game ?
+        self.start_time = time.time()
         self.state = "not_started"
         self.cards = draw_cards(5 + num_p * 2)
         self.pot = 0
@@ -37,11 +37,25 @@ class Game:
         self.actions_remaining = 0
         self.hand_count = 0
         self.acting_player = None
-        self.previous_bet = 0
+        self.previous_bet = False
+        self.previous_bet_amount: float
+        self.previous_bet_amount = 0.0
         self.round_done = True
         self.winners_found = False
         self.split = False
         self.split_winners = None
+
+    def check_chip_count(self):
+        total_chips = self.start_funds * self.num_p
+
+        current_chips = 0
+        for player in self.players:
+            current_chips += player.chips
+
+        current_chips += self.pot
+
+        if total_chips != current_chips:
+            print(f"GAME CORRUPTED!!!: Chip count is wrong. It is {current_chips}")
 
     def deal_cards(self):
         for i in range(0, self.num_p):
@@ -82,8 +96,21 @@ class Game:
                 search = (search + 1) % self.num_p
             sb_index = self.hand_players.index(self.players[search])
             bb_index = (sb_index + 1) % (len(self.hand_players))
-        self.hand_players[sb_index].bets(self, self.small_blind_amount)
-        self.hand_players[bb_index].bets(self, self.big_blind_amount)
+
+        small_blind = self.hand_players[sb_index]
+        big_blind = self.hand_players[bb_index]
+        # Players place max blinds or whatever they have left
+        small_blind.bet = min(self.small_blind_amount, small_blind.chips)
+        big_blind.bet = min(self.big_blind_amount, big_blind.chips)
+        # pot is increased
+        self.pot += small_blind.bet + big_blind.bet
+        # current bet is max of small blind bet or big blind bet
+        self.current_bet = max(small_blind.bet, big_blind.bet)
+        # chips reduced
+        small_blind.chips -= small_blind.bet
+        big_blind.chips -= big_blind.bet
+        #
+        self.actions_remaining = len(self.hand_players)
 
     def new_game(self):
         if self.pot != 0:
@@ -103,37 +130,45 @@ class Game:
             player.best_five = None
             player.showdown_value = 0
             player.bet = 0
+            player.bet_amount = 0
+            player.raise_amount = 0
+            player.playing_for = 0
+
         self.cards = draw_cards(5 + len(self.players) * 2)
         self.deal_cards()
 
         ####test
         """""""""
         for player in self.hand_players:
-            player.cards[0].make_specific(4, 3)
+            player.cards[0].make_specific(10, 3)
             player.cards[1].make_specific(2, 1)
 
-        self.hand_players[2].cards[0].make_specific(11, 1)
-        self.hand_players[2].cards[1].make_specific(2, 2)
+        self.hand_players[1].cards[0].make_specific(12, 3)
+        self.hand_players[1].cards[1].make_specific(11, 4)
 
-        self.hand_players[3].cards[0].make_specific(11, 3)
-        self.hand_players[3].cards[1].make_specific(4, 2)
-        self.cards[0].make_specific(10, 2)
-        self.cards[1].make_specific(9, 2)
-        self.cards[2].make_specific(8, 2)
-        self.cards[3].make_specific(14, 3)
-        self.cards[4].make_specific(6, 2)
+        self.hand_players[2].cards[0].make_specific(12, 1)
+        self.hand_players[2].cards[1].make_specific(7, 4)
+
+        self.cards[0].make_specific(8, 4)
+        self.cards[1].make_specific(3, 4)
+        self.cards[2].make_specific(4, 4)
+        self.cards[3].make_specific(9, 3)
+        self.cards[4].make_specific(6, 4)
 
         ####test
-        """""""""
+         """""""""
         for player in self.hand_players:
             player.value_starting_hand()
         self.next_dealer_pos()
         # self.update_acting_player()
+
         self.post_blinds()
         self.winners_found = False
 
-        self.split=False
-        self.split_winners=[]
+        self.split = False
+        self.split_winners = []
+
+        self.previous_bet = False
 
     def next_stage(self):
         if self.state == 'not_started':
@@ -149,29 +184,29 @@ class Game:
 
     def decide_winner(self):
         print("-------------------SHOWDOWN-----------------")
-        # TODO # When player has highest showdown value, but has bet less than others, he currently gets the whole
-        #  pot, instead of his share.
         if len(self.hand_players) == 1:
             # Single player so single winner
             self.winner_loc = self.players.index(self.hand_players[0])
             self.players[self.winner_loc].chips += self.pot
             self.pot = 0
         else:  # Multiple hand players
-            for player in self.hand_players:  # Assign all active players their best cards and the showdown value of these cards
+            for player in self.hand_players:  # Assign active players their best cards and showdown value
                 valued_cards = player.cards + self.cards[0:5]
                 player.best_five, player.showdown_value = best_cards(valued_cards)
-
-            self.hand_players = sorted(self.hand_players, key=lambda player: player.showdown_value, reverse=True)
+                # TODO # showdown value is wrong for last digit when flush and lowest is 2...
+                # but it is correct if calculated in test scenario...
+                #print(f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
+                #print(f"Value is: {player.showdown_value}")
+            self.hand_players = sorted(self.hand_players, key=lambda p: p.showdown_value, reverse=True)
             # sort active players according to showdown value
 
-            if self.hand_players[0].showdown_value != self.hand_players[1].showdown_value:
-                # TODO # Wrong, there is  still the case that player is entitled to less money than pot,so loop over
-                #  hand players and receive minimum of paying players bet, paid players bet and pot. remove amount
-                #  from pot, do until pot is 0.
-
+            # If top showdown value is unique, and top player has max bet: Player wins whole pot.
+            if self.hand_players[0].showdown_value != self.hand_players[1].showdown_value and self.hand_players[
+                0].bet == self.current_bet:
                 self.winner_loc = self.players.index(self.hand_players[0])
                 self.players[self.winner_loc].chips += self.pot
                 self.pot = 0
+
             else:  # we are in at least two-way split...
                 print("We have a split")
                 self.split = True
@@ -180,17 +215,15 @@ class Game:
                 # but opponents down the line could have a lower bet.
                 for player in self.hand_players:
                     # for each player still playing
-                    player.playing_for += player.bet  # add own bet to playing for
                     for paying_player in self.hand_players:
-                        # go through OTHER players (still playing)
-                        if player != paying_player:
-                            player.playing_for += min(paying_player.bet, player.bet)
-                            # find how much player is playing for. It's min of their own bet, and other player bet
+                        # go through all players (still playing), (including self)
+                        player.playing_for += min(paying_player.bet, player.bet)
+                        # find how much player is playing for. It's min of their own bet, and other player bet
                 # Now we know how much each player would get if they were top showdown_value
-                # But, they will instead receive the minimum of that max, and how much is remaining in pot,
+                # But, they will instead receive the minimum of that amount, and how much is remaining in pot,
                 # after paying everyone with a higher showdown_value.
                 while self.pot > 0:
-                    paid_players = []  # find which player(s) have top score
+                    paid_players = []  # find which player(s) have top score (in this round of chip distribution)
                     for player in self.hand_players:
                         # player has top score so is in winners
                         if player.showdown_value == self.hand_players[0].showdown_value:
@@ -202,21 +235,29 @@ class Game:
                     else:
                         pie_of_pot = 0
                     for player in paid_players:
-                        # player gets what they are playing for, or their share of pot
-                        player.chips += min(player.playing_for, pie_of_pot,self.pot)
-                        self.pot -= min(player.playing_for, pie_of_pot,self.pot)
+                        # player gets what they are playing for, or their share of pot, or the remainder of the pot.
+                        player.chips += min(player.playing_for, pie_of_pot, self.pot)
+                        self.pot -= min(player.playing_for, pie_of_pot, self.pot)
+                        if self.pot < 0: print("WARNING:Pot went negative")
                         # player has been paid so remove from playing players.
                         self.hand_players.remove(player)
 
         self.winners_found = True
 
         for player in self.players:
-            print(
-                f"{player.name},SH.V:{round(player.starting_hand_value, 2)},ShowDV:{player.showdown_value},Hand-Rank:{categorize_value(player.showdown_value)}")
+            if player.showdown_value>0:
+                print(
+                    f"{player.name},SH.V:{round(player.starting_hand_value, 2)},ShowDV:{player.showdown_value},Hand-Rank:{categorize_value(player.showdown_value)}")
+                print(
+                    f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
 
     def betting_round(self, gui):
+        self.check_chip_count()
+
+        self.previous_bet = False  # New round, so first bet is indeed a bet, not a raise.
         self.decide_acting_player()
         print(f'-------------------NEW BETTING ROUND-{self.state}-----------------')
+        print(f"Current Bet: {self.current_bet}, Pot:{self.pot}")
         self.actions_remaining = len(self.hand_players)
 
         while self.actions_remaining > 0:
@@ -224,14 +265,17 @@ class Game:
             self.acting_player.takes_action(game=self, decision=self.acting_player.decision,
                                             bet_amount=self.acting_player.bet_amount,
                                             raise_amount=self.acting_player.raise_amount)
+
             # Can show each player action
             if gui is not None:
                 gui.render_gui(self)
                 time.sleep(gui.delay)
 
             print(
-                f"{self.acting_player.name},{self.acting_player.decision}s,C.Bet={self.current_bet},P.Bet:{self.acting_player.bet}, Pot:{self.pot},SH.V:{round(self.acting_player.starting_hand_value, 2)} Playing for:{self.acting_player.playing_for},ShowDV:{self.acting_player.showdown_value}")
-
+                f"{self.acting_player.name} {self.acting_player.decision}s: {self.acting_player.bet_amount}/{self.acting_player.raise_amount}.P.Bet : {self.acting_player.bet}"
+                f""
+                f" C.Bet : {self.current_bet}, Playing for:{self.acting_player.playing_for},ShowDV:{self.acting_player.showdown_value}")
+            self.check_chip_count()
             self.update_acting_player()
 
         self.next_stage()

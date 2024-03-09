@@ -40,7 +40,7 @@ def create_card_objects(dataframe):
         dataframe.iloc[index, 5] = card_2
     return dataframe
 
-
+# TODO # Since value_cards function has changed, redo hand ranking simulation file.
 def simulate(n_hands=1, n_common_cards=5, starting_hands_file_path="Data/starting_hands_sorted.xlsx",
              output_save_loc="Data/placeholder.xlsx"):
     df = pd.read_excel(starting_hands_file_path, index_col=0)
