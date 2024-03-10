@@ -1,5 +1,7 @@
 import pandas as pd
 
+from card import combinations, value_cards, best_cards
+
 
 class Player:
 
@@ -9,7 +11,7 @@ class Player:
         self.turn = 0
         self.cards = cards
         self.showdown_value = 0
-        self.starting_hand_value = 0
+
         self.seat_number = seat_number
         self.bet = 0
         self.best_five = cards
@@ -19,7 +21,141 @@ class Player:
         self.valid_choice = None
         self.playing_for = 0
 
-    def value_starting_hand(self, data_loc="Data/hand_rankings_100.xlsx"):
+        self.pre_flop_rank = 0
+        self.flop_rank = 0
+        self.turn_rank = 0
+        self.river_rank = 0
+        self.showdown_rank = 0
+
+    def rank_flop(self, game):
+        # Return ranking of player hand against all possible hands creatable with specific flop
+        # Create dataframe containing value of current flop (3)+(2)all possible hands
+        # 47 choose 2 entries (52 minus flop minus player cards)
+        # Whole deck
+        deck_c = game.deck.copy()
+        flop_cards = deck_c[0:3]
+        player_cards = self.cards
+        # Remove seen cards
+        for card in flop_cards:
+            deck_c.remove(card)
+        for card in player_cards:
+            deck_c.remove(card)
+        possible_opponent_hands = combinations(deck_c, 2)
+        # Prepare dataframe
+        df = pd.DataFrame(index=range(0, len(possible_opponent_hands)))
+        df["Hands"] = [[flop_cards[0], flop_cards[1], flop_cards[2]]] * len(possible_opponent_hands)
+        hand_list = [[tup[0], tup[1]] for tup in possible_opponent_hands]
+
+        df["POP"] = hand_list
+        df["Combos"] = df["Hands"] + df["POP"]
+        del df["POP"], df["Hands"]
+        df["Score"] = df["Combos"].apply(value_cards)
+
+        player_hand = flop_cards + player_cards
+        player_flop_value = value_cards(player_hand)
+
+        count = df['Score'].apply(lambda score: 1 if score <= player_flop_value else 0).sum()
+        percentage_beat = count / len(possible_opponent_hands)
+
+        self.flop_rank = percentage_beat
+
+    def rank_turn(self, game):
+        # Return ranking of player hand against all possible hands creatable with specific turn
+        # Create dataframe containing value of current turn (4)+(2) all possible hands
+
+        # Whole deck
+        deck_c = game.deck.copy()
+        turn_cards = deck_c[0:4]
+        player_cards = self.cards
+        # Remove seen cards
+        for card in turn_cards:
+            deck_c.remove(card)
+        for card in player_cards:
+            deck_c.remove(card)
+        possible_opponent_hands = combinations(deck_c, 2)
+        # Prepare dataframe
+        df = pd.DataFrame(index=range(0, len(possible_opponent_hands)))
+        df["Hands"] = [[turn_cards[0], turn_cards[1], turn_cards[2], turn_cards[3]]] * len(possible_opponent_hands)
+        hand_list = [[tup[0], tup[1]] for tup in possible_opponent_hands]
+
+        df["POP"] = hand_list
+        df["Combos"] = df["Hands"] + df["POP"]
+        del df["POP"], df["Hands"]
+        df["Score"] = df["Combos"].apply(lambda cards: best_cards(cards)[1])
+
+        player_hand = turn_cards + player_cards
+        player_turn_value = best_cards(player_hand)[1]
+
+        count = df['Score'].apply(lambda score: 1 if score <= player_turn_value else 0).sum()
+        percentage_beat = count / len(possible_opponent_hands)
+        self.turn_rank = percentage_beat
+
+    def rank_river(self, game):
+        # Return ranking of player hand against all possible hands creatable with specific river
+        # Create dataframe containing value of current river (5)+(2) all possible hands
+
+        # Whole deck
+        deck_c = game.deck.copy()
+        river_cards = deck_c[0:5]
+        player_cards = self.cards
+        # Remove seen cards
+        for card in river_cards:
+            deck_c.remove(card)
+        for card in player_cards:
+            deck_c.remove(card)
+        possible_opponent_hands = combinations(deck_c, 2)
+        # Prepare dataframe
+        df = pd.DataFrame(index=range(0, len(possible_opponent_hands)))
+        df["Hands"] = [[river_cards[0], river_cards[1], river_cards[2], river_cards[3], river_cards[4]]] * len(
+            possible_opponent_hands)
+        hand_list = [[tup[0], tup[1]] for tup in possible_opponent_hands]
+
+        df["POP"] = hand_list
+        df["Combos"] = df["Hands"] + df["POP"]
+        del df["POP"], df["Hands"]
+        df["Score"] = df["Combos"].apply(lambda cards: best_cards(cards)[1])
+
+        player_hand = river_cards + player_cards
+        player_river_value = best_cards(player_hand)[1]
+
+        count = df['Score'].apply(lambda score: 1 if score <= player_river_value else 0).sum()
+        percentage_beat = count / len(possible_opponent_hands)
+        self.river_rank = percentage_beat
+
+    def rank_showdown(self, game):
+        # Return ranking of player hand against all possible hands creatable with specific showdown
+        # Create dataframe containing value of current showdown (5)+(2) all possible hands
+
+        # Whole deck
+        deck_c = game.deck.copy()
+        showdown_cards = deck_c[0:5]
+        player_cards = self.cards
+        # Remove seen cards
+        for card in showdown_cards:
+            deck_c.remove(card)
+        for card in player_cards:
+            deck_c.remove(card)
+        possible_opponent_hands = combinations(deck_c, 2)
+        # Prepare dataframe
+        df = pd.DataFrame(index=range(0, len(possible_opponent_hands)))
+        df["Hands"] = [[showdown_cards[0], showdown_cards[1], showdown_cards[2], showdown_cards[3], showdown_cards[4],
+                        showdown_cards[4]]] * len(
+            possible_opponent_hands)
+        hand_list = [[tup[0], tup[1]] for tup in possible_opponent_hands]
+
+        df["POP"] = hand_list
+        df["Combos"] = df["Hands"] + df["POP"]
+        del df["POP"], df["Hands"]
+        df["Score"] = df["Combos"].apply(lambda cards: best_cards(cards)[1])
+
+        player_hand = showdown_cards + player_cards
+        player_showdown_value = best_cards(player_hand)[1]
+
+        count = df['Score'].apply(lambda score: 1 if score <= player_showdown_value else 0).sum()
+        percentage_beat = count / len(possible_opponent_hands)
+        self.showdown_rank=percentage_beat
+
+    def rank_starting_hand(self, data_loc="Data/hand_rankings_100.xlsx"):
         df = pd.read_excel(data_loc)
         search = [self.cards[0].value, self.cards[0].suit, self.cards[1].value, self.cards[1].suit]
         mask = df.apply(lambda row: all(row.iloc[i] == search[i] for i in range(len(search))), axis=1)
@@ -30,9 +166,9 @@ class Player:
             print(f"The valuing function failed, while searching for:{search}")
             print(f"Result was:")
             # print(result)
-            self.starting_hand_value = 0
+            self.pre_flop_rank = 0
         else:
-            self.starting_hand_value = result.iloc[0, 4]
+            self.pre_flop_rank = result.iloc[0, 4]
 
     def check_valid_choice(self, game):
         player = self
@@ -72,8 +208,6 @@ class Player:
 
             elif player.decision == "call":
                 if player.chips < game.current_bet - player.bet:  # Can't call, not enough chips
-                    # TODO # When player wants to call but doesn't have enough, he goes all-in. In this case,
-                    #  his chips go negative...
 
                     print(
                         "Player chose call, but doesn't have enough chips to cover current bet.")  # p.chips > 0 = True
@@ -140,15 +274,15 @@ class Player:
         self.bet_amount = 0
         self.raise_amount = 0
 
-        if self.starting_hand_value < 0.1 and self.bet < game.current_bet and len(game.hand_players) != 1:
+        if self.pre_flop_rank < 0.1 and self.bet < game.current_bet and len(game.hand_players) != 1:
             self.decision = "fold"
-        elif self.starting_hand_value < 0.5:
+        elif self.pre_flop_rank < 0.5:
             if self.bet == game.current_bet:
                 self.decision = "check"
             else:
                 self.decision = "call"
-        elif self.starting_hand_value < 0.8:
-            if game.pot <=50:
+        elif self.pre_flop_rank < 0.8:
+            if game.pot <= 50:
                 self.decision = "bet"
                 self.bet_amount = max(game.big_blind_amount, game.pot * 0.5)
                 # self.bet_amount = game.big_blind_amount * 0.5
@@ -159,7 +293,7 @@ class Player:
                 self.decision = "call"
             else:
                 self.decision = "fold"
-        elif self.starting_hand_value >= 0.8 and self.chips > 0:
+        elif self.pre_flop_rank >= 0.8 and self.chips > 0:
             self.decision = "all-in"
         else:
             pass
@@ -194,6 +328,7 @@ class Player:
         elif self.decision == "raise":
             game.previous_bet = True
             game.previous_bet_amount = self.raise_amount
+
     def calls(self, game):
         self.chips -= game.current_bet - self.bet
         game.pot += game.current_bet - self.bet
@@ -211,7 +346,6 @@ class Player:
 
     def all_ins(self, game):
 
-        # TODO #game.current_bet += bet_amount
         self.bet += self.chips
         game.pot += self.chips
         previous_current_bet = game.current_bet

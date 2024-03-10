@@ -1,6 +1,7 @@
 import pandas as pd
 
-from card import draw_cards, Card, best_cards
+from card import draw_cards, Card, best_cards, combinations
+
 
 
 def swap_values(row):
@@ -39,6 +40,7 @@ def create_card_objects(dataframe):
         dataframe.iloc[index, 4] = card_1
         dataframe.iloc[index, 5] = card_2
     return dataframe
+
 
 # TODO # Since value_cards function has changed, redo hand ranking simulation file.
 def simulate(n_hands=1, n_common_cards=5, starting_hands_file_path="Data/starting_hands_sorted.xlsx",

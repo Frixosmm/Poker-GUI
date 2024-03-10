@@ -52,7 +52,6 @@ class GUI:
         self.render_time(game)
         self.render_chips_test((500, 500))
 
-        cards = game.cards
         for i in range(0, len(self.seat_positions)):
             seat_text = self.font.render(f"Seat No: {i + 1}", 1, "black")
             self.display.blit(seat_text, self.seat_positions[i])
@@ -93,7 +92,7 @@ class GUI:
             self.render_winners(game)
         # print common cards according to game stage (depending on game.common_cards_shown)
         card_position = 0
-        for card in cards[0:game.common_cards_shown]:
+        for card in game.deck[0:game.common_cards_shown]:
             self.display.blit(card.image, (
                 self.width / 2.08 + card_position * (self.card_width * 1.2) - 2.5 * self.card_width,
                 (self.height / 2) - 0.5 * self.card_height))

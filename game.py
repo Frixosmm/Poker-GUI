@@ -13,7 +13,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.start_time = time.time()
         self.state = "not_started"
-        self.cards = draw_cards(5 + num_p * 2)
+        self.deck = draw_cards(52)
         self.pot = 0
         self.big_blind_amount = bb
         self.small_blind_amount = bb / 2
@@ -59,7 +59,7 @@ class Game:
 
     def deal_cards(self):
         for i in range(0, self.num_p):
-            self.players[i].cards = self.cards[5 + i * 2:7 + i * 2]
+            self.players[i].cards = self.deck[5 + i * 2:7 + i * 2]
             # Highest value card is first
             if self.players[i].cards[0].value < self.players[i].cards[1].value:
                 self.players[i].cards[0], self.players[i].cards[1] = self.players[i].cards[1], self.players[i].cards[0]
@@ -68,10 +68,6 @@ class Game:
                     self.players[i].cards[1].suit:
                 self.players[i].cards[0].suit, self.players[i].cards[1].suit = self.players[i].cards[1].suit, \
                     self.players[i].cards[0].suit
-
-            # Each player calculates the value of their starting hand
-            # for player in self.players:
-            #    player.value_starting_hand()
 
     def next_dealer_pos(self):
         check_seat = (self.dealer_loc + 1) % self.num_p
@@ -133,8 +129,8 @@ class Game:
             player.bet_amount = 0
             player.raise_amount = 0
             player.playing_for = 0
-
-        self.cards = draw_cards(5 + len(self.players) * 2)
+        self.deck = draw_cards(52)
+        # self.deck = draw_cards(5 + len(self.players) * 2)
         self.deal_cards()
 
         ####test
@@ -157,8 +153,6 @@ class Game:
 
         ####test
          """""""""
-        for player in self.hand_players:
-            player.value_starting_hand()
         self.next_dealer_pos()
         # self.update_acting_player()
 
@@ -182,6 +176,24 @@ class Game:
         elif self.state == 'river':
             self.state = 'showdown'
 
+    def players_value_their_hand(self):
+
+        if self.state == 'pre_flop':
+            for player in self.hand_players:
+                player.rank_starting_hand()
+        elif self.state == 'flop':
+            for player in self.hand_players:
+                player.rank_flop(self)
+        elif self.state == 'turn':
+            for player in self.hand_players:
+                player.rank_turn(self)
+        elif self.state == 'river':
+            for player in self.hand_players:
+                player.rank_river(self)
+        elif self.state == 'showdown':
+            for player in self.hand_players:
+                player.rank_showdown(self)
+
     def decide_winner(self):
         print("-------------------SHOWDOWN-----------------")
         if len(self.hand_players) == 1:
@@ -191,12 +203,10 @@ class Game:
             self.pot = 0
         else:  # Multiple hand players
             for player in self.hand_players:  # Assign active players their best cards and showdown value
-                valued_cards = player.cards + self.cards[0:5]
+                valued_cards = player.cards + self.deck[0:5]
                 player.best_five, player.showdown_value = best_cards(valued_cards)
-                # TODO # showdown value is wrong for last digit when flush and lowest is 2...
-                # but it is correct if calculated in test scenario...
-                #print(f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
-                #print(f"Value is: {player.showdown_value}")
+                # print(f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
+                # print(f"Value is: {player.showdown_value}")
             self.hand_players = sorted(self.hand_players, key=lambda p: p.showdown_value, reverse=True)
             # sort active players according to showdown value
 
@@ -245,14 +255,17 @@ class Game:
         self.winners_found = True
 
         for player in self.players:
-            if player.showdown_value>0:
+            if player.showdown_value > 0:
                 print(
-                    f"{player.name},SH.V:{round(player.starting_hand_value, 2)},ShowDV:{player.showdown_value},Hand-Rank:{categorize_value(player.showdown_value)}")
+                    f"{player.name},SH.V:{round(player.pre_flop_rank, 2)},ShowDV:{player.showdown_value},Hand-Rank:{categorize_value(player.showdown_value)}")
                 print(
                     f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
+                print(
+                    f"Rankings are:{round(player.pre_flop_rank, 2)},{round(player.flop_rank, 2)},{round(player.turn_rank, 2)},{round(player.river_rank, 2)},{round(player.showdown_rank, 2)}")
 
     def betting_round(self, gui):
         self.check_chip_count()
+        self.players_value_their_hand()
 
         self.previous_bet = False  # New round, so first bet is indeed a bet, not a raise.
         self.decide_acting_player()
@@ -279,6 +292,7 @@ class Game:
             self.update_acting_player()
 
         self.next_stage()
+
         self.new_round = False
         self.round_done = True
 
