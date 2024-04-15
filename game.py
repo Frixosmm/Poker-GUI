@@ -7,6 +7,8 @@ from player import Player
 from constants import *
 
 
+# TODO # Result of decide_winner is seemingly correct, but text on screen is wrong...
+
 class Game:
     def __init__(self, num_p=6, bb=2, start_funds=100):
         self.num_p = num_p
@@ -23,8 +25,9 @@ class Game:
         self.players = []
         self.hand_players = []
         for i in range(0, self.num_p):
-            self.players.append(Player("Player" + str(i + 1), self.start_funds, [], i))
-            # self.cards[5 + i * 2:7 + i * 2]
+            avatar_image = pygame.image.load("Images/Avatars/avatar_" + str(i + 13) + ".png")
+            name = "Player " + str(i + 1)
+            self.players.append(Player(name, self.start_funds, [], i, avatar_image))
         for player in self.players:
             if player.chips > 0:
                 self.hand_players.append(player)
@@ -40,10 +43,13 @@ class Game:
         self.previous_bet = False
         self.previous_bet_amount: float
         self.previous_bet_amount = 0.0
-        self.round_done = True
+        self.player_can_give_input = True
         self.winners_found = False
         self.split = False
         self.split_winners = None
+
+        self.human_player = self.players[3]
+        self.action_required = False
 
     def check_chip_count(self):
         total_chips = self.start_funds * self.num_p
@@ -109,72 +115,89 @@ class Game:
         self.actions_remaining = len(self.hand_players)
 
     def new_game(self):
-        if self.pot != 0:
-            for player in self.hand_players:  # use previous hand players to give back chips
-                player.chips += player.bet
-                player.bet = 0
+        if self.state == "not_started" or self.state == "showdown" or len(self.hand_players) == 1:
+            """""""""
+            if self.pot != 0:
+                for player in self.hand_players:  # use previous hand players to give back chips
+                    player.chips += player.bet
+                    player.bet = 0
+                self.pot = 0
+                for player in self.players:
+                    player.bet = 0  
+            """""""""
+            if self.pot != 0:
+                if len(self.hand_players) == 1:
+                    self.hand_players[0].chips += self.pot
+                else:
+                    print("something weird happened,check it out")
             self.pot = 0
-            for player in self.players:
+            self.hand_count += 1
+            self.current_bet = 0
+            self.state = "pre_flop"
+            self.hand_players = self.players.copy()
+            for player in self.players:  # Knocked out players don't participate in next hand.
+                if player.chips <= 0:
+                    self.hand_players.remove(player)
+                player.best_five = None
+                player.showdown_value = 0
                 player.bet = 0
-        self.hand_count += 1
-        self.current_bet = 0
-        self.state = "pre_flop"
-        self.hand_players = self.players.copy()
-        for player in self.players:  # Knocked out players don't participate in next hand.
-            if player.chips <= 0:
-                self.hand_players.remove(player)
-            player.best_five = None
-            player.showdown_value = 0
-            player.bet = 0
-            player.bet_amount = 0
-            player.raise_amount = 0
-            player.playing_for = 0
-        self.deck = draw_cards(52)
-        # self.deck = draw_cards(5 + len(self.players) * 2)
-        self.deal_cards()
+                player.bet_amount = 0
+                player.raise_amount = 0
+                player.playing_for = 0
+            if len(self.hand_players) > 1:
+                self.deck = draw_cards(52)
+                # self.deck = draw_cards(5 + len(self.players) * 2)
+                self.deal_cards()
 
-        ####test
-        """""""""
-        for player in self.hand_players:
-            player.cards[0].make_specific(10, 3)
-            player.cards[1].make_specific(2, 1)
+                ####test
+                """""""""
+                for player in self.hand_players:
+                    player.cards[0].make_specific(10, 3)
+                    player.cards[1].make_specific(2, 1)
+                
+                self.hand_players[1].cards[0].make_specific(12, 3)
+                self.hand_players[1].cards[1].make_specific(11, 4)
+        
+                self.hand_players[2].cards[0].make_specific(12, 1)
+                self.hand_players[2].cards[1].make_specific(7, 4)
+                
+                self.cards[0].make_specific(8, 4)
+                self.cards[1].make_specific(3, 4)
+                self.cards[2].make_specific(4, 4)
+                self.cards[3].make_specific(9, 3)
+                self.cards[4].make_specific(6, 4)
+        
+                ####test
+                 """""""""
+                self.next_dealer_pos()
+                # self.update_acting_player()
 
-        self.hand_players[1].cards[0].make_specific(12, 3)
-        self.hand_players[1].cards[1].make_specific(11, 4)
+                self.post_blinds()
+                self.winners_found = False
 
-        self.hand_players[2].cards[0].make_specific(12, 1)
-        self.hand_players[2].cards[1].make_specific(7, 4)
+                self.split = False
+                self.split_winners = []
 
-        self.cards[0].make_specific(8, 4)
-        self.cards[1].make_specific(3, 4)
-        self.cards[2].make_specific(4, 4)
-        self.cards[3].make_specific(9, 3)
-        self.cards[4].make_specific(6, 4)
-
-        ####test
-         """""""""
-        self.next_dealer_pos()
-        # self.update_acting_player()
-
-        self.post_blinds()
-        self.winners_found = False
-
-        self.split = False
-        self.split_winners = []
-
-        self.previous_bet = False
+                self.previous_bet = False
+            else:
+                print("New game cannot start with 1 player.")
+        else:
+            print("Cannot start a new game while another is in progress")
 
     def next_stage(self):
-        if self.state == 'not_started':
-            self.state = 'pre_flop'
-        elif self.state == 'pre_flop':
-            self.state = 'flop'
-        elif self.state == 'flop':
-            self.state = 'turn'
-        elif self.state == 'turn':
-            self.state = 'river'
-        elif self.state == 'river':
-            self.state = 'showdown'
+        if len(self.hand_players) > 1:
+            if self.state == 'not_started':
+                self.state = 'pre_flop'
+            elif self.state == 'pre_flop':
+                self.state = 'flop'
+            elif self.state == 'flop':
+                self.state = 'turn'
+            elif self.state == 'turn':
+                self.state = 'river'
+            elif self.state == 'river':
+                self.state = 'showdown'
+        else:
+            print("The game cannot proceed: Not enough players")
 
     def players_value_their_hand(self):
 
@@ -190,9 +213,6 @@ class Game:
         elif self.state == 'river':
             for player in self.hand_players:
                 player.rank_river(self)
-        elif self.state == 'showdown':
-            for player in self.hand_players:
-                player.rank_showdown(self)
 
     def decide_winner(self):
         print("-------------------SHOWDOWN-----------------")
@@ -225,7 +245,11 @@ class Game:
                 # but opponents down the line could have a lower bet.
                 for player in self.hand_players:
                     # for each player still playing
-                    for paying_player in self.hand_players:
+                    # TODO # paying players are ALL players...not just the remaining ones
+                    #  check that players which are not in game still retain their bet and it doesn't get turned to 0
+                    #  at some point in the logic due to oversight
+                    # TODO # Check it works properly.
+                    for paying_player in self.players:
                         # go through all players (still playing), (including self)
                         player.playing_for += min(paying_player.bet, player.bet)
                         # find how much player is playing for. It's min of their own bet, and other player bet
@@ -257,80 +281,11 @@ class Game:
         for player in self.players:
             if player.showdown_value > 0:
                 print(
-                    f"{player.name},SH.V:{round(player.pre_flop_rank, 2)},ShowDV:{player.showdown_value},Hand-Rank:{categorize_value(player.showdown_value)}")
+                    f"{GREEN}{player.name}{RESET},SH.V:{round(player.pre_flop_rank, 2)},ShowDV:{player.showdown_value},Hand-Rank:{GREEN}{categorize_value(player.showdown_value)}{RESET}")
                 print(
-                    f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo},")
+                    f"Cards are:{player.best_five[0].combo},{player.best_five[1].combo},{player.best_five[2].combo},{player.best_five[3].combo},{player.best_five[4].combo}")
                 print(
-                    f"Rankings are:{round(player.pre_flop_rank, 2)},{round(player.flop_rank, 2)},{round(player.turn_rank, 2)},{round(player.river_rank, 2)},{round(player.showdown_rank, 2)}")
-
-    def betting_round(self, gui):
-        self.check_chip_count()
-        self.players_value_their_hand()
-
-        self.previous_bet = False  # New round, so first bet is indeed a bet, not a raise.
-        self.decide_acting_player()
-        print(f'-------------------NEW BETTING ROUND-{self.state}-----------------')
-        print(f"Current Bet: {self.current_bet}, Pot:{self.pot}")
-        self.actions_remaining = len(self.hand_players)
-
-        while self.actions_remaining > 0:
-            self.acting_player.decides(game=self)
-            self.acting_player.takes_action(game=self, decision=self.acting_player.decision,
-                                            bet_amount=self.acting_player.bet_amount,
-                                            raise_amount=self.acting_player.raise_amount)
-
-            # Can show each player action
-            if gui is not None:
-                gui.render_gui(self)
-                time.sleep(gui.delay)
-
-            print(
-                f"{self.acting_player.name} {self.acting_player.decision}s: {self.acting_player.bet_amount}/{self.acting_player.raise_amount}.P.Bet : {self.acting_player.bet}"
-                f""
-                f" C.Bet : {self.current_bet}, Playing for:{self.acting_player.playing_for},ShowDV:{self.acting_player.showdown_value}")
-            self.check_chip_count()
-            self.update_acting_player()
-
-        self.next_stage()
-
-        self.new_round = False
-        self.round_done = True
-
-    def run_main(self, gui):
-        self.new_game()
-        run = True
-        while run:
-            gui.render_gui(self)
-            # time.sleep(1)
-            if self.new_round:
-                self.betting_round(gui)
-            time.sleep(gui.delay)
-            gui.render_gui(self)
-            self.clock.tick(60)
-
-            if self.state == "showdown" and not self.winners_found:
-                self.decide_winner()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run = False
-                    break
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        run = False
-                        break
-                    if event.key == pygame.K_n:
-                        if self.state != "pre_flop":
-                            self.new_game()
-                        else:
-                            print("A new game is already being played")
-                    if event.key == pygame.K_p:
-                        if self.state != "showdown" and self.state != "not_started":
-                            self.new_round = True
-                if event.type == pygame.MOUSEBUTTONDOWN:  # if you click, show mouse position, useful for placing
-                    print(pygame.mouse.get_pos())
-
-        pygame.quit()
+                    f"Rankings are:{round(player.pre_flop_rank, 2)},{round(player.flop_rank, 2)},{round(player.turn_rank, 2)},{round(player.river_rank, 2)}")
 
     def update_acting_player(self):
         seat_check = (self.acting_player.seat_number + 1) % self.num_p
@@ -358,3 +313,129 @@ class Game:
             acting_index = self.hand_players.index(self.players[search])
 
         self.acting_player = self.hand_players[acting_index]
+
+    # TODO # Ensure that when someone bets after blinds are placed, it counts as a raise, not a bet.
+    def betting_round(self, gui):
+        self.player_can_give_input = False
+        self.check_chip_count()
+        self.players_value_their_hand()
+
+        self.previous_bet = False  # New round, so first bet is indeed a bet, not a raise.
+        if self.state == "pre-flop":  # Unless big blinds have been placed? # TODO # Check it works correctly
+            self.previous_bet = True
+            self.previous_bet_amount = self.big_blind_amount
+
+        self.decide_acting_player()
+        print(f'------------------{RED}{self.state}{RESET}-----------------')
+        # print(f"Current Bet: {self.current_bet}, Pot:{self.pot}")
+        self.actions_remaining = len(self.hand_players)
+
+        while self.actions_remaining > 0:
+            print(f"Options:{self.acting_player.valid_actions}")
+
+            if self.acting_player != self.human_player:
+                self.acting_player.decides(game=self)
+
+            else:
+                self.action_required = True
+                while self.action_required:
+                    gui.render_request_human_input(self)
+                    gui.listen_for_human_action(self)
+
+            self.acting_player.takes_action(game=self, decision=self.acting_player.decision,
+                                            bet_amount=self.acting_player.bet_amount,
+                                            raise_amount=self.acting_player.raise_amount)
+
+
+
+
+            # Can show each player action
+            if gui is not None:
+                gui.render_gui(self)
+                time.sleep(gui.delay)
+
+            print(
+                f"{GREEN}{self.acting_player.name}{RESET} {RED}{self.acting_player.decision}s{RESET}: {self.acting_player.bet_amount}/{self.acting_player.raise_amount}.P.Bet : {self.acting_player.bet}"
+                f" C.Bet : {self.current_bet} , "
+                f"{self.acting_player.current_rank} / {self.acting_player.current_range} / BL:{round(self.acting_player.bet / (self.acting_player.chips + self.acting_player.bet), 2)} / {round(self.acting_player.bet_limit, 2)}   ")
+            self.check_chip_count()
+            self.update_acting_player()
+
+        self.next_stage()
+
+        self.new_round = False
+        self.player_can_give_input = True
+
+    def run_main(self, gui):
+        self.new_game()
+        run = True
+
+        slider_left = False
+        slider_right = False
+
+        while run:
+            gui.render_gui(self)
+            if self.new_round:
+                self.betting_round(gui)
+            time.sleep(gui.delay)
+            #gui.render_gui(self)
+            self.clock.tick(60)
+
+            if self.state == "showdown" and not self.winners_found:
+                self.decide_winner()
+
+            # TODO# What exactly does this if statement solve?
+            if self.player_can_give_input:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        run = False
+                        break
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            run = False
+                            break
+                        if event.key == pygame.K_n:
+                            if self.state != "pre_flop" and self.num_p > 1:
+                                self.new_game()
+                            elif self.state == "pre_flop":
+                                if len(self.hand_players) != 1:
+                                    print("A new game is already being played")
+                                else:
+                                    self.new_game()
+                                    print("Pre-flop,with one player...")
+                            else:
+                                print("New game cannot start for some reason")
+                        if event.key == pygame.K_p:
+                            if self.state != "showdown" and self.state != "not_started":
+                                self.new_round = True
+
+                        if event.key == pygame.K_RIGHT:
+                            slider_right = True
+                        if event.key == pygame.K_LEFT:
+                            slider_left = True
+                    elif event.type == pygame.KEYUP:
+                        if event.key == pygame.K_RIGHT:
+                            slider_right = False
+                        if event.key == pygame.K_LEFT:
+                            slider_left = False
+
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        print("Click")
+                        # TODO # When player clicks call/fold when its not his turn...?
+            else:
+                time.sleep(1)
+
+            if slider_left:
+                gui.handle_x = max(BAR_X, gui.handle_x - 2)
+
+            elif slider_right and gui.slider_value < self.players[3].chips:
+                gui.handle_x = min(gui.handle_x + 2, BAR_X + BAR_WIDTH - HANDLE_WIDTH / 2)
+
+            if self.action_required == False and self.state!="showdown":
+                self.new_round = True
+
+        # pygame.quit()
+
+
+
+

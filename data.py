@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
+
 import pandas as pd
 
 from card import draw_cards, Card, best_cards, combinations
-
 
 
 def swap_values(row):
@@ -43,6 +44,13 @@ def create_card_objects(dataframe):
 
 
 # TODO # Since value_cards function has changed, redo hand ranking simulation file.
+"""""""""
+NOTE: Do not change the format of hand_rankings file. 
+Hand are not sorted by "score", but are instead sorted so that Card_1_Value is higher than Card_2_Value
+This is due to how the value function works.
+"""""""""
+
+
 def simulate(n_hands=1, n_common_cards=5, starting_hands_file_path="Data/starting_hands_sorted.xlsx",
              output_save_loc="Data/placeholder.xlsx"):
     df = pd.read_excel(starting_hands_file_path, index_col=0)
@@ -78,3 +86,14 @@ def simulate(n_hands=1, n_common_cards=5, starting_hands_file_path="Data/startin
     df.to_excel(output_save_loc, index=False)
     print(f"File has been saved as:{output_save_loc}")
     return df
+
+
+def plot_frequencies(data_loc="Data/hand_rankings_500.xlsx"):
+    df = pd.read_excel(data_loc)
+    plt.figure(figsize=(10, 6))
+    plt.hist(df['Score'], bins=100, range=(0, 1), edgecolor='black', alpha=0.7)
+    plt.xlabel('Score')
+    plt.ylabel('Frequency')
+    plt.title('Frequency of Scores')
+    plt.grid(True)
+    plt.show()

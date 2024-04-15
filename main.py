@@ -1,7 +1,7 @@
 import pandas as pd
 
 from card import draw_cards, combinations
-from data import simulate
+from data import *
 
 from game import Game
 from gui import GUI
@@ -10,7 +10,6 @@ from gui import GUI
 
 # TODO# Cards moving animation
 
-# TODO# Adjust seat positions for 1920/1080.
 
 
 if __name__ == '__main__':
@@ -18,4 +17,8 @@ if __name__ == '__main__':
     game.run_main(GUI(delay=0))
     #game.new_game()
     # game.betting_round(gui=None)
+    #simulate(10000,output_save_loc="Data/hand_rankings_10000.xlsx")
+    #plot_frequencies(data_loc="Data/hand_rankings_10000.xlsx")
+
+
 
